@@ -9218,6 +9218,12 @@ class ProviderConfigManager:
             from litellm.llms.runwayml.videos.transformation import RunwayMLVideoConfig
 
             return RunwayMLVideoConfig()
+        elif LlmProviders.VOLCENGINE == provider:
+            from litellm.llms.volcengine.videos.transformation import (
+                VolcEngineVideoConfig,
+            )
+
+            return VolcEngineVideoConfig()
         return None
 
     @staticmethod

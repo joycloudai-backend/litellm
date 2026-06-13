@@ -502,6 +502,41 @@ class DBSpendUpdateWriter:
                 traceback.format_exc(),
             )
 
+    async def apply_async_billing_delta(
+        self,
+        *,
+        response_cost: Optional[float],
+        user_id: Optional[str],
+        hashed_token: Optional[str],
+        team_id: Optional[str],
+        org_id: Optional[str],
+        end_user_id: Optional[str],
+        prisma_client: Optional[PrismaClient],
+        user_api_key_cache: DualCache,
+        litellm_proxy_budget_name: Optional[str],
+        payload: SpendLogsPayload,
+        request_tags: Optional[Any],
+    ) -> None:
+        """
+        Apply a post-request billing delta for async workloads such as video tasks.
+
+        This reuses the standard spend update flow, while allowing the payload metadata
+        to opt out of incrementing request counters on daily spend tables.
+        """
+        await self._batch_database_updates(
+            response_cost=response_cost,
+            user_id=user_id,
+            hashed_token=hashed_token,
+            team_id=team_id,
+            org_id=org_id,
+            end_user_id=end_user_id,
+            prisma_client=prisma_client,
+            user_api_key_cache=user_api_key_cache,
+            litellm_proxy_budget_name=litellm_proxy_budget_name,
+            payload_copy=copy.deepcopy(payload),
+            request_tags=request_tags,
+        )
+
     async def _update_key_db(
         self,
         response_cost: Optional[float],
@@ -827,6 +862,7 @@ class DBSpendUpdateWriter:
             daily_org_spend_update_queue=self.daily_org_spend_update_queue,
             daily_end_user_spend_update_queue=self.daily_end_user_spend_update_queue,
             daily_agent_spend_update_queue=self.daily_agent_spend_update_queue,
+            daily_tag_spend_update_queue=self.daily_tag_spend_update_queue,
         )
 
         # Only commit from redis to db if this pod is the leader
@@ -843,6 +879,7 @@ class DBSpendUpdateWriter:
                     daily_org_spend_update_transactions,
                     daily_end_user_spend_update_transactions,
                     daily_agent_spend_update_transactions,
+                    daily_tag_spend_update_transactions,
                 ) = (
                     await self.redis_update_buffer.get_all_transactions_from_redis_buffer_pipeline()
                 )
@@ -918,6 +955,13 @@ class DBSpendUpdateWriter:
                         daily_spend_transactions=daily_org_spend_update_transactions,
                     )
 
+                if daily_tag_spend_update_transactions is not None:
+                    await DBSpendUpdateWriter.update_daily_tag_spend(
+                        n_retry_times=n_retry_times,
+                        prisma_client=prisma_client,
+                        proxy_logging_obj=proxy_logging_obj,
+                        daily_spend_transactions=daily_tag_spend_update_transactions,
+                    )
                 if daily_end_user_spend_update_transactions is not None:
                     await DBSpendUpdateWriter.update_daily_end_user_spend(
                         n_retry_times=n_retry_times,
@@ -1012,7 +1056,19 @@ class DBSpendUpdateWriter:
             daily_spend_transactions=daily_org_spend_update_transactions,
         )
 
-        # NOTE: Daily tag spend is committed by a separate scheduler job.
+        ################## Daily Tag Spend Update Transactions ##################
+        # Aggregate all in memory daily tag spend transactions and commit to db
+        daily_tag_spend_update_transactions = cast(
+            Dict[str, DailyTagSpendTransaction],
+            await self.daily_tag_spend_update_queue.flush_and_get_aggregated_daily_spend_update_transactions(),
+        )
+
+        await DBSpendUpdateWriter.update_daily_tag_spend(
+            n_retry_times=n_retry_times,
+            prisma_client=prisma_client,
+            proxy_logging_obj=proxy_logging_obj,
+            daily_spend_transactions=daily_tag_spend_update_transactions,
+        )
 
         ################## Daily End-User Spend Update Transactions ##################
         # Aggregate all in memory daily end-user spend transactions and commit to db
@@ -1989,6 +2045,7 @@ class DBSpendUpdateWriter:
         request_status = prisma_client.get_request_status(payload)
         verbose_proxy_logger.debug(f"Logged request status: {request_status}")
         _metadata: SpendLogsMetadata = json.loads(payload["metadata"])
+        async_billing_only = bool(_metadata.get("async_billing_only", False))
         usage_obj = _metadata.get("usage_object", {}) or {}
         if isinstance(payload["startTime"], datetime):
             start_time = payload["startTime"].isoformat()
@@ -2018,11 +2075,23 @@ class DBSpendUpdateWriter:
                 prompt_tokens=payload["prompt_tokens"],
                 completion_tokens=payload["completion_tokens"],
                 spend=payload["spend"],
-                api_requests=1,
-                successful_requests=1 if request_status == "success" else 0,
-                failed_requests=1 if request_status != "success" else 0,
-                cache_read_input_tokens=_extract_cache_read_tokens(usage_obj),
-                cache_creation_input_tokens=_extract_cache_creation_tokens(usage_obj),
+                api_requests=0 if async_billing_only else 1,
+                successful_requests=(
+                    0
+                    if async_billing_only
+                    else (1 if request_status == "success" else 0)
+                ),
+                failed_requests=(
+                    0
+                    if async_billing_only
+                    else (1 if request_status != "success" else 0)
+                ),
+                cache_read_input_tokens=usage_obj.get("cache_read_input_tokens", 0)
+                or 0,
+                cache_creation_input_tokens=usage_obj.get(
+                    "cache_creation_input_tokens", 0
+                )
+                or 0,
             )
             return daily_transaction
         except Exception as e:
