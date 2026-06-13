@@ -1993,7 +1993,22 @@ class Logging(LiteLLMLoggingBaseClass):
                 and result is not None
                 and self.stream is not True
             ):
-                if self._is_recognized_call_type_for_logging(
+                if self._is_binary_video_content_download_result(result=result):
+                    self.model_call_details[
+                        "standard_logging_object"
+                    ] = self._build_standard_logging_payload(
+                        self._build_binary_video_content_logging_result(result=result),
+                        start_time,
+                        end_time,
+                    )
+                    self.model_call_details["response_cost"] = 0.0
+                    if (
+                        standard_logging_payload := self.model_call_details.get(
+                            "standard_logging_object"
+                        )
+                    ) is not None:
+                        emit_standard_logging_payload(standard_logging_payload)
+                elif self._is_recognized_call_type_for_logging(
                     logging_result=logging_result
                 ) or isinstance(logging_result, (dict, list)):
                     self._process_hidden_params_and_response_cost(
@@ -2030,6 +2045,28 @@ class Logging(LiteLLMLoggingBaseClass):
             return start_time, end_time, result
         except Exception as e:
             raise Exception(f"[Non-Blocking] LiteLLM.Success_Call Error: {str(e)}")
+
+    def _is_binary_video_content_download_result(self, result: Any) -> bool:
+        return self.call_type in (
+            CallTypes.video_content.value,
+            CallTypes.avideo_content.value,
+        ) and isinstance(result, (bytes, bytearray))
+
+    def _build_binary_video_content_logging_result(
+        self, result: Union[bytes, bytearray]
+    ) -> Dict[str, Any]:
+        video_id = (
+            self.model_call_details.get("video_id")
+            or self.model_call_details.get("litellm_call_id")
+            or ""
+        )
+        return {
+            "id": str(video_id),
+            "object": "video.content",
+            "bytes": len(result),
+            "model": self.model_call_details.get("model") or self.model,
+            "status": "completed",
+        }
 
     def _is_recognized_call_type_for_logging(
         self,
@@ -3133,10 +3170,9 @@ class Logging(LiteLLMLoggingBaseClass):
                             litellm_call_id=self.model_call_details["litellm_call_id"],
                             print_verbose=print_verbose,
                         )
-                    if callable(callback):  # custom logger functions
-                        global customLogger
-                        if customLogger is None:
-                            customLogger = CustomLogger()
+                    if (
+                        callable(callback) and customLogger is not None
+                    ):  # custom logger functions
                         customLogger.log_event(
                             kwargs=self.model_call_details,
                             response_obj=result,
@@ -3277,10 +3313,9 @@ class Logging(LiteLLMLoggingBaseClass):
                         start_time=start_time,
                         end_time=end_time,
                     )  # type: ignore
-                if callable(callback):  # custom logger functions
-                    global customLogger
-                    if customLogger is None:
-                        customLogger = CustomLogger()
+                if (
+                    callable(callback) and customLogger is not None
+                ):  # custom logger functions
                     await customLogger.async_log_event(
                         kwargs=self.model_call_details,
                         response_obj=result,
@@ -5058,7 +5093,6 @@ class StandardLoggingPayloadSetup:
             user_api_key_org_id=None,
             user_api_key_org_alias=None,
             user_api_key_project_id=None,
-            user_api_key_project_alias=None,
             user_api_key_user_id=None,
             user_api_key_team_alias=None,
             user_api_key_user_email=None,
@@ -5964,7 +5998,6 @@ def get_standard_logging_metadata(
         user_api_key_org_id=None,
         user_api_key_org_alias=None,
         user_api_key_project_id=None,
-        user_api_key_project_alias=None,
         user_api_key_user_id=None,
         user_api_key_user_email=None,
         user_api_key_team_alias=None,

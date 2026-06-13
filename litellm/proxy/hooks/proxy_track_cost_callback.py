@@ -200,6 +200,7 @@ class _ProxyDBLogger(CustomLogger):
             increment_spend_counters,
             proxy_logging_obj,
             update_cache,
+            volcengine_video_billing_manager,
         )
 
         verbose_proxy_logger.debug("INSIDE _PROXY_track_cost_callback")
@@ -227,6 +228,15 @@ class _ProxyDBLogger(CustomLogger):
                 if sl_object is not None
                 else kwargs.get("response_cost", None)
             )
+            if volcengine_video_billing_manager is not None:
+                overridden_response_cost = (
+                    await volcengine_video_billing_manager.handle_success_event(
+                        kwargs=kwargs,
+                        completion_response=completion_response,
+                    )
+                )
+                if overridden_response_cost is not None:
+                    response_cost = overridden_response_cost
             tags = _get_request_tags_for_cost_tracking(
                 sl_object=sl_object,
                 metadata=metadata,
