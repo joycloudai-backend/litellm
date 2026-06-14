@@ -196,6 +196,7 @@ class _ProxyDBLogger(CustomLogger):
         end_time=None,  # start/end time for completion
     ):
         from litellm.proxy.proxy_server import (
+            increment_spend_counters,
             proxy_logging_obj,
             update_cache,
             volcengine_video_billing_manager,

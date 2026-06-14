@@ -1,0 +1,20 @@
+FROM ghcr.io/berriai/litellm:v1.88.1
+
+COPY litellm/llms/volcengine/                   /app/litellm/llms/volcengine/
+COPY litellm/llms/custom_httpx/aiohttp_transport.py /app/litellm/llms/custom_httpx/
+COPY litellm/proxy/spend_tracking/volcengine_video_billing.py /app/litellm/proxy/spend_tracking/
+COPY litellm-proxy-extras/litellm_proxy_extras/migrations/20260407191500_add_video_task_billing_table/ /app/litellm-proxy-extras/litellm_proxy_extras/migrations/20260407191500_add_video_task_billing_table/
+COPY litellm/proxy/db/db_spend_update_writer.py /app/litellm/proxy/db/
+COPY litellm/proxy/hooks/proxy_track_cost_callback.py /app/litellm/proxy/hooks/
+COPY litellm/proxy/video_endpoints/endpoints.py /app/litellm/proxy/video_endpoints/
+COPY litellm/proxy/video_endpoints/utils.py     /app/litellm/proxy/video_endpoints/
+COPY litellm/videos/main.py                     /app/litellm/videos/
+COPY litellm/proxy/_types.py                    /app/litellm/proxy/
+COPY litellm/proxy/spend_tracking/spend_tracking_utils.py /app/litellm/proxy/spend_tracking/
+COPY litellm/proxy/proxy_server.py              /app/litellm/proxy/
+COPY litellm/litellm_core_utils/litellm_logging.py /app/litellm/litellm_core_utils/
+COPY litellm/utils.py                           /app/litellm/
+COPY model_prices_and_context_window.json       /app/
+COPY litellm/proxy/schema.prisma                /app/litellm/proxy/
+COPY schema.prisma                              /app/
+COPY litellm-proxy-extras/litellm_proxy_extras/schema.prisma /app/litellm-proxy-extras/litellm_proxy_extras/
