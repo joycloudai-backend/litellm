@@ -18,3 +18,6 @@ COPY model_prices_and_context_window.json       /app/
 COPY litellm/proxy/schema.prisma                /app/litellm/proxy/
 COPY schema.prisma                              /app/
 COPY litellm-proxy-extras/litellm_proxy_extras/schema.prisma /app/litellm-proxy-extras/litellm_proxy_extras/
+
+WORKDIR /app
+RUN prisma generate --schema=./schema.prisma
