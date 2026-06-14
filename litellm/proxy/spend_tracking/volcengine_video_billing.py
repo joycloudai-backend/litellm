@@ -120,13 +120,27 @@ def _normalize_pricing_model(model_name: str) -> str:
 
 def _candidate_pricing_models(model_name: str) -> List[str]:
     normalized_model = _normalize_pricing_model(model_name)
-    candidates = [normalized_model]
-
     provider, _, raw_model = normalized_model.partition("/")
+
+    raw_variants = [raw_model]
     versionless_model = re.sub(r"-\d{6,}$", "", raw_model)
     if versionless_model and versionless_model != raw_model:
-        candidates.append(f"{provider}/{versionless_model}")
+        raw_variants.append(versionless_model)
 
+    # Volcengine model ids spell the version with a dash (e.g.
+    # "doubao-seedance-2-0-260128") while the pricing keys use a dot
+    # ("doubao-seedance-2.0"). Add dotted variants so the raw provider model
+    # id resolves to its pricing entry without manual provider_pricing_model.
+    for variant in list(raw_variants):
+        dotted = re.sub(r"(\d)-(\d)", r"\1.\2", variant)
+        if dotted != variant:
+            raw_variants.append(dotted)
+
+    candidates: List[str] = []
+    for variant in raw_variants:
+        candidate = f"{provider}/{variant}"
+        if candidate not in candidates:
+            candidates.append(candidate)
     return candidates
 
 
