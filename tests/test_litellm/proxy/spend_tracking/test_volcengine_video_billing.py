@@ -147,6 +147,40 @@ async def test_register_pending_video_task_uses_versionless_pricing_without_inpu
 
 
 @pytest.mark.asyncio
+async def test_register_pending_video_task_resolves_dash_versioned_model(
+    patched_volcengine_model_cost,
+):
+    manager = _build_manager()
+    # Real Volcengine model ids spell the version with a dash and append a
+    # date, e.g. "doubao-seedance-2-0-260128". This must still resolve to the
+    # dot-form pricing key "volcengine/doubao-seedance-2.0".
+    kwargs = _build_generation_kwargs(base_model="doubao-seedance-2-0-260128")
+    response = VideoObject(
+        id="video_dash_version",
+        object="video",
+        status="queued",
+        model="ep-20260402174450-9qflb",
+        seconds="11",
+        usage={"duration_seconds": 11.0},
+    )
+
+    overridden_cost = await manager.handle_success_event(
+        kwargs=kwargs,
+        completion_response=response,
+    )
+
+    assert overridden_cost == 0.0
+    manager.prisma_client.db.litellm_videotasktable.upsert.assert_awaited_once()
+    upsert_data = (
+        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
+            "create"
+        ]
+    )
+    assert upsert_data["price_per_million_tokens"] == 46.0
+    assert upsert_data["pricing_currency"] == "CNY"
+
+
+@pytest.mark.asyncio
 async def test_register_pending_video_task_uses_input_video_price(
     patched_volcengine_model_cost,
 ):
