@@ -87,6 +87,8 @@ VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
         "supported_output_modalities": ["video"],
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 46.0,
         "volcengine_video_output_cost_per_million_tokens_with_input_video": 28.0,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 51.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 31.0,
     },
     "volcengine/doubao-seedance-2.0-fast": {
         "litellm_provider": "volcengine",
@@ -111,8 +113,10 @@ VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
         "source": "https://www.byteplus.com/docs/82379/1544106",
         "supported_modalities": ["text", "image", "video", "audio"],
         "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 6.4,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.9,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 7.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 4.3,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 7.7,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 4.7,
     },
     "byteplus/dreamina-seedance-2.0-fast": {
         "litellm_provider": "byteplus",
@@ -124,8 +128,8 @@ VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
         "source": "https://www.byteplus.com/docs/82379/1544106",
         "supported_modalities": ["text", "image", "video", "audio"],
         "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.1,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.1,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.6,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.3,
     },
 }
 
@@ -172,6 +176,21 @@ def _candidate_pricing_models(model_name: str) -> List[str]:
         if candidate not in candidates:
             candidates.append(candidate)
     return candidates
+
+
+def _is_1080p_resolution(resolution: Any) -> bool:
+    if not resolution:
+        return False
+    normalized = str(resolution).strip().lower()
+    if normalized in {"1080p", "1080"}:
+        return True
+    if "x" in normalized:
+        try:
+            dimensions = [int(part) for part in normalized.split("x")]
+        except ValueError:
+            return False
+        return bool(dimensions) and min(dimensions) == 1080
+    return False
 
 
 def _has_reference_video(content: Any) -> bool:
@@ -465,12 +484,16 @@ class VolcengineVideoBillingManager:
             completion_response=completion_response,
         )
         has_input_video = _has_reference_video(request_content)
+        resolution = self._extract_request_resolution(
+            kwargs=kwargs, completion_response=completion_response
+        )
 
         model_info = cast(dict, metadata.get("model_info", {}) or {})
         pricing_model = self._resolve_pricing_model(model_info=model_info)
         unit_price, pricing_currency = self._resolve_pricing_snapshot(
             pricing_model=pricing_model,
             has_input_video=has_input_video,
+            resolution=resolution,
         )
 
         api_key_hash = self._get_api_key_hash(
@@ -611,9 +634,11 @@ class VolcengineVideoBillingManager:
             headers=headers,
         )
         async_httpx_client = get_async_httpx_client(
-            llm_provider=LlmProviders.BYTEPLUS
-            if provider == "byteplus"
-            else LlmProviders.VOLCENGINE
+            llm_provider=(
+                LlmProviders.BYTEPLUS
+                if provider == "byteplus"
+                else LlmProviders.VOLCENGINE
+            )
         )
         response = await async_httpx_client.client.get(
             status_url,
@@ -745,11 +770,10 @@ class VolcengineVideoBillingManager:
             default=_safe_float(video_response.seconds),
         )
 
-        provider_final_spend = (
-            float(task.price_per_million_tokens or 0.0)
-            * float(total_tokens)
-            / 1_000_000.0
+        unit_price = self._resolve_final_unit_price(
+            task=task, video_response=video_response
         )
+        provider_final_spend = unit_price * float(total_tokens) / 1_000_000.0
         final_spend_usd = _convert_provider_spend_to_usd(
             amount=provider_final_spend,
             currency=task.pricing_currency or "USD",
@@ -1162,10 +1186,77 @@ class VolcengineVideoBillingManager:
             )
         return normalized_model
 
+    def _resolve_final_unit_price(
+        self,
+        task: Any,
+        video_response: VideoObject,
+    ) -> float:
+        """
+        Resolution-dependent pricing (e.g. byteplus/dreamina-seedance-2.0 charges
+        more for 1080p) means the registration-time snapshot can be wrong when the
+        request did not pin a resolution. The completed task reports the actual
+        output resolution, so re-resolve against it and fall back to the snapshot
+        when the provider omits it or pricing lookup fails.
+        """
+        resolution = self._extract_response_resolution(video_response)
+        if resolution is not None and task.pricing_model:
+            try:
+                unit_price, _ = self._resolve_pricing_snapshot(
+                    pricing_model=task.pricing_model,
+                    has_input_video=bool(task.has_input_video),
+                    resolution=resolution,
+                )
+                return unit_price
+            except Exception as e:
+                verbose_proxy_logger.warning(
+                    "Ark video billing could not re-resolve price for video_id=%s "
+                    "resolution=%s: %s. Falling back to snapshot price.",
+                    task.video_id,
+                    resolution,
+                    str(e),
+                )
+        return float(task.price_per_million_tokens or 0.0)
+
+    @staticmethod
+    def _extract_response_resolution(video_response: VideoObject) -> Optional[str]:
+        hidden_params = getattr(video_response, "_hidden_params", {}) or {}
+        resolution = hidden_params.get("resolution")
+        if resolution:
+            return str(resolution)
+        usage = video_response.usage or {}
+        usage_resolution = usage.get("resolution") or usage.get("video_resolution")
+        return str(usage_resolution) if usage_resolution else None
+
+    def _extract_request_resolution(
+        self,
+        kwargs: dict,
+        completion_response: VideoObject,
+    ) -> Optional[str]:
+        optional_params = kwargs.get("optional_params")
+        if isinstance(optional_params, dict):
+            resolution = optional_params.get("resolution") or optional_params.get(
+                "size"
+            )
+            if resolution:
+                return str(resolution)
+
+        proxy_server_request = kwargs.get("proxy_server_request")
+        if isinstance(proxy_server_request, str):
+            proxy_server_request = safe_json_loads(proxy_server_request, default={})
+        if isinstance(proxy_server_request, dict):
+            resolution = proxy_server_request.get(
+                "resolution"
+            ) or proxy_server_request.get("size")
+            if resolution:
+                return str(resolution)
+
+        return self._extract_response_resolution(completion_response)
+
     def _resolve_pricing_snapshot(
         self,
         pricing_model: str,
         has_input_video: bool,
+        resolution: Any = None,
     ) -> Tuple[float, str]:
         self._ensure_runtime_pricing_models_registered()
 
@@ -1182,11 +1273,17 @@ class VolcengineVideoBillingManager:
                 f"No pricing config found for Volcengine video model={pricing_model}"
             )
 
-        price_key = (
+        base_price_key = (
             "volcengine_video_output_cost_per_million_tokens_with_input_video"
             if has_input_video
             else "volcengine_video_output_cost_per_million_tokens_without_input_video"
         )
+        price_key = base_price_key
+        if _is_1080p_resolution(resolution):
+            resolution_price_key = f"{base_price_key}_1080p"
+            if pricing_entry.get(resolution_price_key) is not None:
+                price_key = resolution_price_key
+
         unit_price = pricing_entry.get(price_key)
         if unit_price is None:
             raise ValueError(
@@ -1248,6 +1345,9 @@ class VolcengineVideoBillingManager:
             credentials = self.llm_router.get_deployment_credentials_with_provider(
                 candidate
             )
-            if credentials and credentials.get("custom_llm_provider") in ARK_VIDEO_PROVIDERS:
+            if (
+                credentials
+                and credentials.get("custom_llm_provider") in ARK_VIDEO_PROVIDERS
+            ):
                 return credentials
         return None
