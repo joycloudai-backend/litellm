@@ -1,6 +1,9 @@
 FROM ghcr.io/berriai/litellm:v1.88.1
 
+# Volcengine provider
 COPY litellm/llms/volcengine/                   /app/litellm/llms/volcengine/
+# BytePlus provider (international)
+COPY litellm/llms/byteplus/                     /app/litellm/llms/byteplus/
 COPY litellm/llms/custom_httpx/aiohttp_transport.py /app/litellm/llms/custom_httpx/
 COPY litellm/proxy/spend_tracking/volcengine_video_billing.py /app/litellm/proxy/spend_tracking/
 COPY litellm-proxy-extras/litellm_proxy_extras/migrations/20260407191500_add_video_task_billing_table/ /app/litellm-proxy-extras/litellm_proxy_extras/migrations/20260407191500_add_video_task_billing_table/
@@ -13,8 +16,14 @@ COPY litellm/proxy/_types.py                    /app/litellm/proxy/
 COPY litellm/proxy/spend_tracking/spend_tracking_utils.py /app/litellm/proxy/spend_tracking/
 COPY litellm/proxy/proxy_server.py              /app/litellm/proxy/
 COPY litellm/litellm_core_utils/litellm_logging.py /app/litellm/litellm_core_utils/
+COPY litellm/litellm_core_utils/get_llm_provider_logic.py /app/litellm/litellm_core_utils/
 COPY litellm/utils.py                           /app/litellm/
+COPY litellm/__init__.py                        /app/litellm/
+COPY litellm/types/utils.py                     /app/litellm/types/
+COPY litellm/constants.py                       /app/litellm/
 COPY model_prices_and_context_window.json       /app/
+COPY litellm/proxy/public_endpoints/provider_create_fields.json /app/litellm/proxy/public_endpoints/
+COPY provider_endpoints_support.json            /app/
 COPY litellm/proxy/schema.prisma                /app/litellm/proxy/
 COPY schema.prisma                              /app/
 COPY litellm-proxy-extras/litellm_proxy_extras/schema.prisma /app/litellm-proxy-extras/litellm_proxy_extras/
