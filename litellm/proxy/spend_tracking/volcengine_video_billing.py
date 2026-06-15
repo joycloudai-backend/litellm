@@ -506,11 +506,11 @@ class VolcengineVideoBillingManager:
             standard_logging_object=standard_logging_object,
         )
         request_tags_json = _to_prisma_json(request_tags)
-        task_metadata_json = _to_prisma_json(
-            {
-                "request_content": request_content,
-            }
-        )
+        custom_discount = self._snapshot_custom_discount(metadata)
+        task_metadata_payload: Dict[str, Any] = {"request_content": request_content}
+        if custom_discount is not None:
+            task_metadata_payload["custom_discount"] = custom_discount
+        task_metadata_json = _to_prisma_json(task_metadata_payload)
         now = _now_utc()
         usage = dict(completion_response.usage or {})
 
@@ -774,9 +774,15 @@ class VolcengineVideoBillingManager:
             task=task, video_response=video_response
         )
         provider_final_spend = unit_price * float(total_tokens) / 1_000_000.0
-        final_spend_usd = _convert_provider_spend_to_usd(
+        final_spend_usd_before_discount = _convert_provider_spend_to_usd(
             amount=provider_final_spend,
             currency=task.pricing_currency or "USD",
+        )
+        discount_factor = self._resolve_discount_factor(task=task)
+        final_spend_usd = self._apply_discount_factor(
+            spend=final_spend_usd_before_discount,
+            discount_factor=discount_factor,
+            task=task,
         )
         delta_spend = max(final_spend_usd - float(task.spend or 0.0), 0.0)
         provider_delta_spend = provider_final_spend
@@ -798,6 +804,7 @@ class VolcengineVideoBillingManager:
                     delta_prompt_tokens=delta_prompt_tokens,
                     delta_completion_tokens=delta_completion_tokens,
                     usage=usage,
+                    custom_discount_factor=discount_factor,
                 )
 
                 await self._upsert_final_spend_log(
@@ -808,6 +815,7 @@ class VolcengineVideoBillingManager:
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                     usage=usage,
+                    custom_discount_factor=discount_factor,
                 )
 
             await video_task_table.update(
@@ -851,6 +859,7 @@ class VolcengineVideoBillingManager:
         delta_prompt_tokens: int,
         delta_completion_tokens: int,
         usage: Dict[str, Any],
+        custom_discount_factor: Optional[float] = None,
     ) -> None:
         from litellm.proxy.proxy_server import (
             litellm_proxy_budget_name,
@@ -867,23 +876,23 @@ class VolcengineVideoBillingManager:
         )
         effective_end_user = spend_log_identity.get("end_user") or task.end_user or None
         request_tags = _parse_request_tags(task.request_tags)
-        delta_metadata: SpendLogsMetadata = cast(
-            SpendLogsMetadata,
-            {
-                "usage_object": usage,
-                "async_billing_only": True,
-                "provider_spend_currency": task.pricing_currency or "CNY",
-                "provider_spend_amount": provider_delta_spend,
-                "billing_spend_currency": "USD",
-                "billing_spend_amount": delta_spend,
-                "provider_to_usd_fx_rate": (
-                    _get_cny_per_usd_rate()
-                    if (task.pricing_currency or "").upper() == "CNY"
-                    else None
-                ),
-                "video_billing_task_id": task.video_id,
-            },
-        )
+        delta_metadata_dict: Dict[str, Any] = {
+            "usage_object": usage,
+            "async_billing_only": True,
+            "provider_spend_currency": task.pricing_currency or "CNY",
+            "provider_spend_amount": provider_delta_spend,
+            "billing_spend_currency": "USD",
+            "billing_spend_amount": delta_spend,
+            "provider_to_usd_fx_rate": (
+                _get_cny_per_usd_rate()
+                if (task.pricing_currency or "").upper() == "CNY"
+                else None
+            ),
+            "video_billing_task_id": task.video_id,
+        }
+        if custom_discount_factor is not None:
+            delta_metadata_dict["custom_discount_factor"] = custom_discount_factor
+        delta_metadata: SpendLogsMetadata = cast(SpendLogsMetadata, delta_metadata_dict)
         delta_payload: SpendLogsPayload = cast(
             SpendLogsPayload,
             {
@@ -955,6 +964,7 @@ class VolcengineVideoBillingManager:
         prompt_tokens: int,
         completion_tokens: int,
         usage: Dict[str, Any],
+        custom_discount_factor: Optional[float] = None,
     ) -> None:
         existing_spend_log = await self.prisma_client.db.litellm_spendlogs.find_unique(
             where={"request_id": task.video_id}
@@ -966,6 +976,7 @@ class VolcengineVideoBillingManager:
             provider_spend_amount=provider_spend_amount,
             final_spend=final_spend,
             video_task_id=task.video_id,
+            custom_discount_factor=custom_discount_factor,
         )
         metadata_json = _to_prisma_json(metadata)
         request_tags_json = _to_prisma_json(_parse_request_tags(task.request_tags))
@@ -1034,6 +1045,7 @@ class VolcengineVideoBillingManager:
         provider_spend_amount: float,
         final_spend: float,
         video_task_id: str,
+        custom_discount_factor: Optional[float] = None,
     ) -> Dict[str, Any]:
         if isinstance(existing_metadata, dict):
             metadata_dict = dict(existing_metadata)
@@ -1049,6 +1061,8 @@ class VolcengineVideoBillingManager:
         if pricing_currency.upper() == "CNY":
             metadata_dict["provider_to_usd_fx_rate"] = _get_cny_per_usd_rate()
         metadata_dict["video_billing_task_id"] = video_task_id
+        if custom_discount_factor is not None:
+            metadata_dict["custom_discount_factor"] = custom_discount_factor
         return metadata_dict
 
     async def _get_request_content_for_task_registration(
@@ -1168,6 +1182,117 @@ class VolcengineVideoBillingManager:
         ):
             return _parse_request_tags(standard_logging_object.get("request_tags"))
         return _parse_request_tags(metadata.get("tags"))
+
+    def _snapshot_custom_discount(self, metadata: dict) -> Optional[Dict[str, Any]]:
+        """
+        Snapshot the team custom discount map at task registration so the billed
+        rate is locked in even if the discount is changed before the async video
+        task completes (completion can lag the request by minutes to hours).
+
+        Team discounts surface either directly on metadata.custom_discount or
+        nested under metadata.user_api_key_auth_metadata.custom_discount (the
+        proxy mirrors team metadata there), so both locations are checked to stay
+        consistent with the synchronous chat billing hook.
+        """
+        custom_discount = metadata.get("custom_discount")
+        if not isinstance(custom_discount, dict) or not custom_discount:
+            auth_metadata = metadata.get("user_api_key_auth_metadata")
+            if isinstance(auth_metadata, dict):
+                custom_discount = auth_metadata.get("custom_discount")
+        if not isinstance(custom_discount, dict) or not custom_discount:
+            return None
+        return deepcopy(custom_discount)
+
+    def _resolve_discount_factor(self, task: Any) -> Optional[float]:
+        task_metadata = self._parse_task_metadata(task)
+        custom_discount = task_metadata.get("custom_discount")
+        if not isinstance(custom_discount, dict) or not custom_discount:
+            return None
+        return self._match_discount_factor(
+            custom_discount=custom_discount,
+            model=task.model or "",
+            model_group=task.model_group or "",
+            provider_model=task.provider_model or "",
+        )
+
+    def _apply_discount_factor(
+        self,
+        spend: float,
+        discount_factor: Optional[float],
+        task: Any,
+    ) -> float:
+        """
+        Apply the discount as a multiplier (final = spend * factor), matching the
+        chat billing semantics where erp stores the factor in (0, 1] and 0.8
+        means an 80% charge, not a 20% charge.
+        """
+        if discount_factor is None or spend <= 0:
+            return spend
+        discounted_spend = spend * discount_factor
+        verbose_proxy_logger.info(
+            "Volcengine video billing applied discount: video_id=%s model=%s "
+            "discount_factor=%s original_spend_usd=%.6f discounted_spend_usd=%.6f",
+            getattr(task, "video_id", None),
+            task.model or "",
+            discount_factor,
+            spend,
+            discounted_spend,
+        )
+        return discounted_spend
+
+    def _match_discount_factor(
+        self,
+        custom_discount: Dict[str, Any],
+        model: str,
+        model_group: str,
+        provider_model: str,
+    ) -> Optional[float]:
+        """
+        Match a discount factor for the task using the same precedence as the
+        chat billing hook: exact request model, provider/model short name,
+        model_group, provider model, then a lenient substring fallback.
+        """
+        exact_candidates: List[str] = []
+        if model:
+            exact_candidates.append(model)
+            if "/" in model:
+                exact_candidates.append(model.rsplit("/", 1)[-1])
+        if model_group:
+            exact_candidates.append(model_group)
+        if provider_model:
+            exact_candidates.append(provider_model)
+
+        for candidate in exact_candidates:
+            if candidate and candidate in custom_discount:
+                factor = self._normalize_discount_factor(custom_discount[candidate])
+                if factor is not None:
+                    return factor
+
+        for key, value in custom_discount.items():
+            if not key or not model:
+                continue
+            if key in model or model in key:
+                factor = self._normalize_discount_factor(value)
+                if factor is not None:
+                    return factor
+        return None
+
+    @staticmethod
+    def _normalize_discount_factor(value: Any) -> Optional[float]:
+        factor = _safe_float(value, default=0.0)
+        if factor <= 0.0 or factor > 1.0:
+            return None
+        return factor
+
+    def _parse_task_metadata(self, task: Any) -> Dict[str, Any]:
+        metadata = getattr(task, "metadata", None)
+        if isinstance(metadata, dict):
+            return metadata
+        if isinstance(metadata, str):
+            parsed = safe_json_loads(metadata, default={})
+            if isinstance(parsed, dict):
+                return parsed
+        return {}
 
     def _resolve_pricing_model(self, model_info: dict) -> str:
         pricing_model = (

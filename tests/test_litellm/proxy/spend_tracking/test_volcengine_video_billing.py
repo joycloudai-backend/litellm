@@ -2,6 +2,7 @@
 Tests for Volcengine video billing module.
 """
 
+import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -571,3 +572,323 @@ async def test_poll_pending_video_tasks_disables_itself_when_prisma_client_missi
 
     assert manager._video_task_table_unavailable is True
     warning_mock.assert_called_once()
+
+
+class TestSnapshotCustomDiscount:
+    """Discounts must be captured from the same metadata locations the chat hook
+    reads, so team-level discounts (surfaced under user_api_key_auth_metadata)
+    are not silently dropped for video tasks."""
+
+    def test_reads_top_level_custom_discount(self):
+        manager = _build_manager()
+        metadata = {"custom_discount": {"volcengine/doubao-seedance-2.0": 0.8}}
+        assert manager._snapshot_custom_discount(metadata) == {
+            "volcengine/doubao-seedance-2.0": 0.8
+        }
+
+    def test_reads_team_discount_from_auth_metadata(self):
+        manager = _build_manager()
+        metadata = {
+            "user_api_key_auth_metadata": {
+                "custom_discount": {"volcengine/doubao-seedance-2.0": 0.7}
+            }
+        }
+        assert manager._snapshot_custom_discount(metadata) == {
+            "volcengine/doubao-seedance-2.0": 0.7
+        }
+
+    def test_top_level_takes_precedence_over_auth_metadata(self):
+        manager = _build_manager()
+        metadata = {
+            "custom_discount": {"m": 0.8},
+            "user_api_key_auth_metadata": {"custom_discount": {"m": 0.5}},
+        }
+        assert manager._snapshot_custom_discount(metadata) == {"m": 0.8}
+
+    def test_returns_none_when_absent(self):
+        manager = _build_manager()
+        assert manager._snapshot_custom_discount({}) is None
+
+    def test_returns_none_for_empty_map(self):
+        manager = _build_manager()
+        assert manager._snapshot_custom_discount({"custom_discount": {}}) is None
+
+    def test_snapshot_is_deep_copied(self):
+        manager = _build_manager()
+        source = {"custom_discount": {"m": 0.8}}
+        snapshot = manager._snapshot_custom_discount(source)
+        source["custom_discount"]["m"] = 0.1
+        assert snapshot == {"m": 0.8}
+
+
+class TestNormalizeDiscountFactor:
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (0.8, 0.8),
+            (1.0, 1.0),
+            ("0.5", 0.5),
+            (0.0, None),
+            (-0.2, None),
+            (1.5, None),
+            (None, None),
+            ("garbage", None),
+        ],
+    )
+    def test_normalize(self, value, expected):
+        assert (
+            VolcengineVideoBillingManager._normalize_discount_factor(value) == expected
+        )
+
+
+class TestMatchDiscountFactor:
+    def test_exact_model_match(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"volcengine/doubao-seedance-2.0": 0.8},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="seedance-2.0",
+                provider_model="doubao-seedance-2-0-260128",
+            )
+            == 0.8
+        )
+
+    def test_short_name_match(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"doubao-seedance-2.0": 0.6},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="",
+                provider_model="",
+            )
+            == 0.6
+        )
+
+    def test_model_group_match(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"seedance-2.0": 0.75},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="seedance-2.0",
+                provider_model="",
+            )
+            == 0.75
+        )
+
+    def test_provider_model_match(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"doubao-seedance-2-0-260128": 0.9},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="seedance-2.0",
+                provider_model="doubao-seedance-2-0-260128",
+            )
+            == 0.9
+        )
+
+    def test_exact_precedence_over_substring(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={
+                    "volcengine/doubao-seedance-2.0": 0.8,
+                    "doubao": 0.1,
+                },
+                model="volcengine/doubao-seedance-2.0",
+                model_group="",
+                provider_model="",
+            )
+            == 0.8
+        )
+
+    def test_substring_fallback(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"doubao-seedance": 0.5},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="",
+                provider_model="",
+            )
+            == 0.5
+        )
+
+    def test_no_match_returns_none(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"some-other-model": 0.5},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="seedance-2.0",
+                provider_model="doubao-seedance-2-0-260128",
+            )
+            is None
+        )
+
+    def test_invalid_factor_is_skipped(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"volcengine/doubao-seedance-2.0": 0.0},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="",
+                provider_model="",
+            )
+            is None
+        )
+
+
+class TestApplyDiscountFactor:
+    def test_multiplier_semantics(self):
+        """0.8 charges 80%; a (1 - factor) interpretation would wrongly give 2.0."""
+        manager = _build_manager()
+        task = SimpleNamespace(video_id="vid-1", model="m")
+        assert manager._apply_discount_factor(
+            spend=10.0, discount_factor=0.8, task=task
+        ) == pytest.approx(8.0)
+
+    def test_no_factor_returns_original(self):
+        manager = _build_manager()
+        task = SimpleNamespace(video_id="vid-1", model="m")
+        assert (
+            manager._apply_discount_factor(spend=10.0, discount_factor=None, task=task)
+            == 10.0
+        )
+
+    def test_non_positive_spend_unchanged(self):
+        manager = _build_manager()
+        task = SimpleNamespace(video_id="vid-1", model="m")
+        assert (
+            manager._apply_discount_factor(spend=0.0, discount_factor=0.8, task=task)
+            == 0.0
+        )
+
+
+class TestResolveDiscountFactor:
+    def test_resolves_from_dict_metadata(self):
+        manager = _build_manager()
+        task = SimpleNamespace(
+            metadata={"custom_discount": {"volcengine/doubao-seedance-2.0": 0.8}},
+            model="volcengine/doubao-seedance-2.0",
+            model_group="seedance-2.0",
+            provider_model="doubao-seedance-2-0-260128",
+        )
+        assert manager._resolve_discount_factor(task=task) == 0.8
+
+    def test_resolves_from_json_string_metadata(self):
+        manager = _build_manager()
+        task = SimpleNamespace(
+            metadata=json.dumps(
+                {"custom_discount": {"volcengine/doubao-seedance-2.0": 0.7}}
+            ),
+            model="volcengine/doubao-seedance-2.0",
+            model_group="",
+            provider_model="",
+        )
+        assert manager._resolve_discount_factor(task=task) == 0.7
+
+    def test_no_discount_in_metadata_returns_none(self):
+        manager = _build_manager()
+        task = SimpleNamespace(
+            metadata={"request_content": []},
+            model="volcengine/doubao-seedance-2.0",
+            model_group="",
+            provider_model="",
+        )
+        assert manager._resolve_discount_factor(task=task) is None
+
+
+@pytest.mark.asyncio
+async def test_register_pending_video_task_snapshots_custom_discount(
+    patched_volcengine_model_cost,
+):
+    """Registration must persist the discount snapshot so the billed rate is
+    locked in even if the discount changes before the task completes."""
+    manager = _build_manager()
+    kwargs = _build_generation_kwargs(base_model="doubao-seedance-2.0-260128")
+    kwargs["litellm_params"]["metadata"]["custom_discount"] = {"seedance-2-video": 0.8}
+    response = VideoObject(
+        id="video_discount_snapshot",
+        object="video",
+        status="queued",
+        model="ep-20260402174450-9qflb",
+        seconds="11",
+        usage={"duration_seconds": 11.0},
+    )
+    response._hidden_params = {
+        "request_content": [{"type": "text", "text": "a cat dancing"}]
+    }
+
+    await manager.handle_success_event(kwargs=kwargs, completion_response=response)
+
+    upsert_data = (
+        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
+            "create"
+        ]
+    )
+    assert upsert_data["metadata"].data["custom_discount"] == {"seedance-2-video": 0.8}
+
+
+@pytest.mark.asyncio
+async def test_finalize_completed_task_applies_custom_discount():
+    """The team is billed the discounted USD amount while the recorded provider
+    cost stays at the pre-discount provider-currency value."""
+    manager = _build_manager()
+    manager._apply_async_billing_delta = AsyncMock()
+    manager._upsert_final_spend_log = AsyncMock()
+    manager.prisma_client.db.litellm_videotasktable.update_many.return_value = 1
+
+    task = SimpleNamespace(
+        video_id="video_discount_finalize",
+        billing_state="pending",
+        price_per_million_tokens=46.0,
+        pricing_currency="CNY",
+        spend=0.0,
+        prompt_tokens=0,
+        completion_tokens=0,
+        created_at=datetime.now(timezone.utc),
+        api_key="hashed-key-123",
+        user="user-1",
+        team_id="team-1",
+        organization_id="org-1",
+        end_user="end-user-1",
+        model="seedance-2-video",
+        model_group="seedance-2-video",
+        model_id="deployment-123",
+        provider_model="doubao-seedance-2-0-260128",
+        request_tags=["video-billing"],
+        custom_llm_provider="volcengine",
+        metadata={"custom_discount": {"seedance-2-video": 0.8}},
+    )
+    video_response = VideoObject(
+        id=task.video_id,
+        object="video",
+        status="completed",
+        completed_at=1775549339,
+        model="ep-20260402174450-9qflb",
+        seconds="11",
+        usage={"total_tokens": 1_000_000, "completion_tokens": 1_000_000},
+    )
+
+    await manager._finalize_completed_task(task=task, video_response=video_response)
+
+    provider_spend = 1_000_000 / 1_000_000 * 46.0
+    expected_spend = provider_spend / VOLCENGINE_VIDEO_DEFAULT_CNY_PER_USD * 0.8
+
+    delta_call = manager._apply_async_billing_delta.call_args.kwargs
+    assert delta_call["delta_spend"] == pytest.approx(expected_spend)
+    assert delta_call["custom_discount_factor"] == 0.8
+    assert delta_call["provider_delta_spend"] == pytest.approx(provider_spend)
+
+    upsert_call = manager._upsert_final_spend_log.call_args.kwargs
+    assert upsert_call["final_spend"] == pytest.approx(expected_spend)
+    assert upsert_call["custom_discount_factor"] == 0.8
+
+    update_data = (
+        manager.prisma_client.db.litellm_videotasktable.update.call_args.kwargs["data"]
+    )
+    assert update_data["spend"] == pytest.approx(expected_spend)
