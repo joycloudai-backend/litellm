@@ -41674,7 +41674,9 @@
             "video"
         ],
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 46.0,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 28.0
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 28.0,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 51.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 31.0
     },
     "volcengine/doubao-seedance-2.0-fast": {
         "litellm_provider": "volcengine",
@@ -41713,8 +41715,10 @@
         "supported_output_modalities": [
             "video"
         ],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 6.4,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.9
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 7.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 4.3,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 7.7,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 4.7
     },
     "byteplus/dreamina-seedance-2.0-fast": {
         "litellm_provider": "byteplus",
@@ -41733,7 +41737,7 @@
         "supported_output_modalities": [
             "video"
         ],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.1,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.1
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.6,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.3
     }
 }
