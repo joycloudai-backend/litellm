@@ -70,6 +70,10 @@ VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS = 15
 VOLCENGINE_VIDEO_RETRY_INTERVAL_SECONDS = 60
 VOLCENGINE_VIDEO_CNY_PER_USD_ENV = "LITELLM_VOLCENGINE_VIDEO_CNY_PER_USD"
 VOLCENGINE_VIDEO_DEFAULT_CNY_PER_USD = 7.2
+
+# BytePlus (international) video billing constants
+BYTEPLUS_VIDEO_DEFAULT_PRICING_MODEL = "byteplus/dreamina-seedance-2.0"
+ARK_VIDEO_PROVIDERS = {"volcengine", "byteplus"}
 VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
     "volcengine/doubao-seedance-2.0": {
         "litellm_provider": "volcengine",
@@ -97,6 +101,32 @@ VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 37.0,
         "volcengine_video_output_cost_per_million_tokens_with_input_video": 22.0,
     },
+    "byteplus/dreamina-seedance-2.0": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": ["text", "image", "video", "audio"],
+        "supported_output_modalities": ["video"],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 6.4,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.9,
+    },
+    "byteplus/dreamina-seedance-2.0-fast": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": ["text", "image", "video", "audio"],
+        "supported_output_modalities": ["video"],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.1,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.1,
+    },
 }
 
 
@@ -113,7 +143,7 @@ def _hash_token_if_needed(token: Optional[str]) -> str:
 
 
 def _normalize_pricing_model(model_name: str) -> str:
-    if model_name.startswith("volcengine/"):
+    if model_name.startswith("volcengine/") or model_name.startswith("byteplus/"):
         return model_name
     return f"volcengine/{model_name}"
 
@@ -265,7 +295,7 @@ class VolcengineVideoBillingManager:
         custom_llm_provider = kwargs.get("custom_llm_provider") or (
             kwargs.get("litellm_params", {}) or {}
         ).get("custom_llm_provider")
-        return custom_llm_provider == "volcengine"
+        return custom_llm_provider in ARK_VIDEO_PROVIDERS
 
     async def handle_success_event(
         self,
@@ -552,7 +582,15 @@ class VolcengineVideoBillingManager:
                 f"Could not resolve deployment credentials for model={task.model} model_id={task.model_id}"
             )
 
-        config = VolcEngineVideoConfig()
+        provider = getattr(task, "custom_llm_provider", "volcengine") or "volcengine"
+        if provider == "byteplus":
+            from litellm.llms.byteplus.videos.transformation import (
+                BytePlusVideoConfig,
+            )
+
+            config = BytePlusVideoConfig()
+        else:
+            config = VolcEngineVideoConfig()
         provider_model = task.provider_model or task.model or task.model_group or ""
         litellm_params = GenericLiteLLMParams(**credentials)
         headers = config.validate_environment(
@@ -573,7 +611,9 @@ class VolcengineVideoBillingManager:
             headers=headers,
         )
         async_httpx_client = get_async_httpx_client(
-            llm_provider=LlmProviders.VOLCENGINE
+            llm_provider=LlmProviders.BYTEPLUS
+            if provider == "byteplus"
+            else LlmProviders.VOLCENGINE
         )
         response = await async_httpx_client.client.get(
             status_url,
@@ -584,7 +624,7 @@ class VolcengineVideoBillingManager:
         video_response = config.transform_video_status_retrieve_response(
             raw_response=response,
             logging_obj=None,
-            custom_llm_provider="volcengine",
+            custom_llm_provider=provider,
         )
         await self._reconcile_task_from_video_response(
             video_id=task.video_id,
@@ -1112,13 +1152,13 @@ class VolcengineVideoBillingManager:
             or VOLCENGINE_VIDEO_DEFAULT_PRICING_MODEL
         )
         normalized_model = _normalize_pricing_model(str(pricing_model))
-        if normalized_model == VOLCENGINE_VIDEO_DEFAULT_PRICING_MODEL and not (
+        if not (
             model_info.get("provider_pricing_model") or model_info.get("base_model")
         ):
             verbose_proxy_logger.warning(
-                "Volcengine video billing falling back to default pricing model=%s. "
+                "Ark video billing falling back to default pricing model=%s. "
                 "Set model_info.provider_pricing_model or model_info.base_model for exact endpoint pricing.",
-                VOLCENGINE_VIDEO_DEFAULT_PRICING_MODEL,
+                normalized_model,
             )
         return normalized_model
 
@@ -1208,6 +1248,6 @@ class VolcengineVideoBillingManager:
             credentials = self.llm_router.get_deployment_credentials_with_provider(
                 candidate
             )
-            if credentials and credentials.get("custom_llm_provider") == "volcengine":
+            if credentials and credentials.get("custom_llm_provider") in ARK_VIDEO_PROVIDERS:
                 return credentials
         return None

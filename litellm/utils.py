@@ -9234,6 +9234,12 @@ class ProviderConfigManager:
             )
 
             return VolcEngineVideoConfig()
+        elif LlmProviders.BYTEPLUS == provider:
+            from litellm.llms.byteplus.videos.transformation import (
+                BytePlusVideoConfig,
+            )
+
+            return BytePlusVideoConfig()
         return None
 
     @staticmethod
