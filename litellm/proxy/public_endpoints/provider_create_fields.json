@@ -2907,6 +2907,24 @@
     "default_model_placeholder": "volcengine/<any-model-on-volcengine>"
   },
   {
+    "provider": "BytePlus",
+    "provider_display_name": "BytePlus",
+    "litellm_provider": "byteplus",
+    "credential_fields": [
+      {
+        "key": "api_key",
+        "label": "API Key",
+        "placeholder": null,
+        "tooltip": null,
+        "required": true,
+        "field_type": "password",
+        "options": null,
+        "default_value": null
+      }
+    ],
+    "default_model_placeholder": "byteplus/<any-model-on-byteplus>"
+  },
+  {
     "provider": "Voyage",
     "provider_display_name": "Voyage AI",
     "litellm_provider": "voyage",

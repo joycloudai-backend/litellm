@@ -43583,5 +43583,45 @@
         ],
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 37.0,
         "volcengine_video_output_cost_per_million_tokens_with_input_video": 22.0
+    },
+    "byteplus/dreamina-seedance-2.0": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 6.4,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.9
+    },
+    "byteplus/dreamina-seedance-2.0-fast": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.1,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.1
     }
 }
