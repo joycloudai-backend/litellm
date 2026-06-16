@@ -310,6 +310,48 @@ class TestResolutionAwarePricing:
         assert unit_price == expected
 
 
+class TestDeploymentModelDoesNotShadowPricing:
+    """
+    The proxy registers each deployment's litellm_params.model into
+    litellm.model_cost without the Volcengine video pricing keys. That generic
+    entry must not shadow the dotted runtime pricing entry that actually carries
+    the per-million-token rates.
+    """
+
+    def _make_manager(self):
+        return VolcengineVideoBillingManager(
+            prisma_client=MagicMock(),
+            llm_router=MagicMock(),
+            db_spend_update_writer=MagicMock(),
+            proxy_logging_obj=MagicMock(),
+        )
+
+    def test_versioned_deployment_model_falls_through_to_runtime_pricing(self):
+        import litellm
+
+        manager = self._make_manager()
+        deployment_model = "byteplus/dreamina-seedance-2-0-260128"
+        litellm.register_model(
+            model_cost={
+                deployment_model: {
+                    "litellm_provider": "byteplus",
+                    "mode": "video_generation",
+                }
+            }
+        )
+        try:
+            unit_price, currency = manager._resolve_pricing_snapshot(
+                pricing_model=deployment_model,
+                has_input_video=False,
+                resolution="720p",
+            )
+        finally:
+            litellm.model_cost.pop(deployment_model, None)
+
+        assert unit_price == 7.0
+        assert currency == "USD"
+
+
 class TestFinalUnitPriceResolution:
     """The completed task's reported resolution drives the billed price."""
 
