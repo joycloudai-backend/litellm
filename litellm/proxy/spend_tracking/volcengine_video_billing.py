@@ -1385,24 +1385,32 @@ class VolcengineVideoBillingManager:
     ) -> Tuple[float, str]:
         self._ensure_runtime_pricing_models_registered()
 
-        pricing_entry = None
-        pricing_key = None
-        for candidate in _candidate_pricing_models(pricing_model):
-            pricing_entry = litellm.model_cost.get(candidate)
-            if pricing_entry is not None:
-                pricing_key = candidate
-                break
-
-        if pricing_entry is None or pricing_key is None:
-            raise ValueError(
-                f"No pricing config found for Volcengine video model={pricing_model}"
-            )
-
         base_price_key = (
             "volcengine_video_output_cost_per_million_tokens_with_input_video"
             if has_input_video
             else "volcengine_video_output_cost_per_million_tokens_without_input_video"
         )
+
+        # The proxy registers each deployment's litellm_params.model (e.g.
+        # "byteplus/dreamina-seedance-2-0-260128") into litellm.model_cost without
+        # the Volcengine video pricing keys, so only accept a candidate whose entry
+        # actually carries pricing; otherwise fall through to the dotted/versionless
+        # variant (e.g. "byteplus/dreamina-seedance-2.0") that does.
+        pricing_entry = None
+        pricing_key = None
+        for candidate in _candidate_pricing_models(pricing_model):
+            entry = litellm.model_cost.get(candidate)
+            if entry is not None and entry.get(base_price_key) is not None:
+                pricing_entry = entry
+                pricing_key = candidate
+                break
+
+        if pricing_entry is None or pricing_key is None:
+            raise ValueError(
+                f"No pricing config with key={base_price_key} found for "
+                f"Volcengine video model={pricing_model}"
+            )
+
         price_key = base_price_key
         if _is_1080p_resolution(resolution):
             resolution_price_key = f"{base_price_key}_1080p"
