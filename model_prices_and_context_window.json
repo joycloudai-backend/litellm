@@ -43627,5 +43627,18 @@
         ],
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.6,
         "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.3
-    }
+    },
+    "byteplus/dreamina-seedance-2.0-mini": {
+    "litellm_provider": "byteplus",
+    "max_input_tokens": 1024,
+    "max_output_tokens": 1024,
+    "max_tokens": 1024,
+    "mode": "video_generation",
+    "provider_pricing_currency": "USD",
+    "source": "https://www.byteplus.com/docs/82379/1544106",
+    "supported_modalities": ["text", "image", "video", "audio"],
+    "supported_output_modalities": ["video"],
+    "volcengine_video_output_cost_per_million_tokens_without_input_video": 3.5,
+    "volcengine_video_output_cost_per_million_tokens_with_input_video": 2.1
+  }
 }
