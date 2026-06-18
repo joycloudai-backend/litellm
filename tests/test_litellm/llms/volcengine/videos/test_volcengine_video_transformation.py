@@ -133,8 +133,26 @@ class TestVolcEngineVideoTransformation:
         assert result.created_at == 1712697600
         assert result.completed_at == 1712697660
         assert result.model == "ep-test-123"
+        assert result.video_url == "https://example.com/generated.mp4"
         assert result._hidden_params["video_url"] == "https://example.com/generated.mp4"
         assert result._hidden_params["audio_url"] == "https://example.com/generated.mp3"
+
+    def test_transform_video_status_retrieve_response_omits_video_url_while_processing(
+        self,
+    ):
+        mock_response = Mock(spec=httpx.Response)
+        mock_response.json.return_value = {
+            "id": "cgt-20260402175225-7g6f9",
+            "model": "ep-test-123",
+            "status": "running",
+        }
+        result = self.config.transform_video_status_retrieve_response(
+            raw_response=mock_response,
+            logging_obj=self.mock_logging_obj,
+            custom_llm_provider="volcengine",
+        )
+        assert result.status == "processing"
+        assert result.video_url is None
 
     def test_transform_video_content_request_decodes_video_id(self):
         encoded_video_id = encode_video_id_with_provider(
