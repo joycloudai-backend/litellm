@@ -640,6 +640,7 @@ class VolcEngineVideoConfig(BaseVideoConfig):
             seconds=str(duration) if duration is not None else None,
             size=task.get("ratio"),
             model=response_model,
+            video_url=self._get_nested(task, "content", "video_url"),
         )
 
         usage = {}

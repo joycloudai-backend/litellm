@@ -12,6 +12,7 @@ COPY litellm/proxy/hooks/proxy_track_cost_callback.py /app/litellm/proxy/hooks/
 COPY litellm/proxy/video_endpoints/endpoints.py /app/litellm/proxy/video_endpoints/
 COPY litellm/proxy/video_endpoints/utils.py     /app/litellm/proxy/video_endpoints/
 COPY litellm/videos/main.py                     /app/litellm/videos/
+COPY litellm/types/videos/main.py               /app/litellm/types/videos/
 COPY litellm/proxy/_types.py                    /app/litellm/proxy/
 COPY litellm/proxy/spend_tracking/spend_tracking_utils.py /app/litellm/proxy/spend_tracking/
 COPY litellm/proxy/proxy_server.py              /app/litellm/proxy/
