@@ -103,6 +103,19 @@ VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 37.0,
         "volcengine_video_output_cost_per_million_tokens_with_input_video": 22.0,
     },
+    "volcengine/seedance-1.5-pro": {
+        "litellm_provider": "volcengine",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "CNY",
+        "source": "https://www.volcengine.com/docs/82379/1366799",
+        "supported_modalities": ["text", "image", "video", "audio"],
+        "supported_output_modalities": ["video"],
+        "volcengine_video_output_cost_per_million_tokens_without_audio": 8.0,
+        "volcengine_video_output_cost_per_million_tokens_with_audio": 16.0,
+    },
     "byteplus/dreamina-seedance-2.0": {
         "litellm_provider": "byteplus",
         "max_input_tokens": 1024,
@@ -130,6 +143,19 @@ VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
         "supported_output_modalities": ["video"],
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.6,
         "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.3,
+    },
+    "byteplus/seedance-1.5-pro": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": ["text", "image", "video", "audio"],
+        "supported_output_modalities": ["video"],
+        "volcengine_video_output_cost_per_million_tokens_without_audio": 1.2,
+        "volcengine_video_output_cost_per_million_tokens_with_audio": 2.4,
     },
 }
 
@@ -169,6 +195,7 @@ def _candidate_pricing_models(model_name: str) -> List[str]:
         dotted = re.sub(r"(\d)-(\d)", r"\1.\2", variant)
         if dotted != variant:
             raw_variants.append(dotted)
+
 
     candidates: List[str] = []
     for variant in raw_variants:
@@ -231,6 +258,14 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes"}
+    return bool(value)
 
 
 def _ts_to_datetime(value: Optional[int]) -> Optional[datetime]:
@@ -487,6 +522,9 @@ class VolcengineVideoBillingManager:
         resolution = self._extract_request_resolution(
             kwargs=kwargs, completion_response=completion_response
         )
+        generate_audio = self._extract_request_generate_audio(
+            kwargs=kwargs, completion_response=completion_response
+        )
 
         model_info = cast(dict, metadata.get("model_info", {}) or {})
         pricing_model = self._resolve_pricing_model(model_info=model_info)
@@ -494,6 +532,7 @@ class VolcengineVideoBillingManager:
             pricing_model=pricing_model,
             has_input_video=has_input_video,
             resolution=resolution,
+            generate_audio=generate_audio,
         )
 
         api_key_hash = self._get_api_key_hash(
@@ -507,7 +546,10 @@ class VolcengineVideoBillingManager:
         )
         request_tags_json = _to_prisma_json(request_tags)
         custom_discount = self._snapshot_custom_discount(metadata)
-        task_metadata_payload: Dict[str, Any] = {"request_content": request_content}
+        task_metadata_payload: Dict[str, Any] = {
+            "request_content": request_content,
+            "generate_audio": generate_audio,
+        }
         if custom_discount is not None:
             task_metadata_payload["custom_discount"] = custom_discount
         task_metadata_json = _to_prisma_json(task_metadata_payload)
@@ -1325,11 +1367,13 @@ class VolcengineVideoBillingManager:
         """
         resolution = self._extract_response_resolution(video_response)
         if resolution is not None and task.pricing_model:
+            generate_audio = self._extract_response_generate_audio(task, video_response)
             try:
                 unit_price, _ = self._resolve_pricing_snapshot(
                     pricing_model=task.pricing_model,
                     has_input_video=bool(task.has_input_video),
                     resolution=resolution,
+                    generate_audio=generate_audio,
                 )
                 return unit_price
             except Exception as e:
@@ -1377,18 +1421,53 @@ class VolcengineVideoBillingManager:
 
         return self._extract_response_resolution(completion_response)
 
+    def _extract_request_generate_audio(
+        self,
+        kwargs: dict,
+        completion_response: VideoObject,
+    ) -> bool:
+        optional_params = kwargs.get("optional_params")
+        if isinstance(optional_params, dict) and "generate_audio" in optional_params:
+            return _coerce_bool(optional_params.get("generate_audio"))
+
+        proxy_server_request = kwargs.get("proxy_server_request")
+        if isinstance(proxy_server_request, str):
+            proxy_server_request = safe_json_loads(proxy_server_request, default={})
+        if (
+            isinstance(proxy_server_request, dict)
+            and "generate_audio" in proxy_server_request
+        ):
+            return _coerce_bool(proxy_server_request.get("generate_audio"))
+
+        hidden_params = getattr(completion_response, "_hidden_params", {}) or {}
+        return _coerce_bool(hidden_params.get("generate_audio"))
+
+    def _extract_response_generate_audio(
+        self,
+        task: Any,
+        video_response: VideoObject,
+    ) -> bool:
+        hidden_params = getattr(video_response, "_hidden_params", {}) or {}
+        if "generate_audio" in hidden_params:
+            return _coerce_bool(hidden_params.get("generate_audio"))
+        return _coerce_bool(self._parse_task_metadata(task).get("generate_audio"))
+
     def _resolve_pricing_snapshot(
         self,
         pricing_model: str,
         has_input_video: bool,
         resolution: Any = None,
+        generate_audio: bool = False,
     ) -> Tuple[float, str]:
         self._ensure_runtime_pricing_models_registered()
 
-        base_price_key = (
-            "volcengine_video_output_cost_per_million_tokens_with_input_video"
-            if has_input_video
-            else "volcengine_video_output_cost_per_million_tokens_without_input_video"
+        audio_base_keys = (
+            "volcengine_video_output_cost_per_million_tokens_without_audio",
+            "volcengine_video_output_cost_per_million_tokens_with_audio",
+        )
+        input_video_base_keys = (
+            "volcengine_video_output_cost_per_million_tokens_without_input_video",
+            "volcengine_video_output_cost_per_million_tokens_with_input_video",
         )
 
         # The proxy registers each deployment's litellm_params.model (e.g.
@@ -1400,15 +1479,35 @@ class VolcengineVideoBillingManager:
         pricing_key = None
         for candidate in _candidate_pricing_models(pricing_model):
             entry = litellm.model_cost.get(candidate)
-            if entry is not None and entry.get(base_price_key) is not None:
+            if entry is None:
+                continue
+            if any(
+                entry.get(key) is not None
+                for key in audio_base_keys + input_video_base_keys
+            ):
                 pricing_entry = entry
                 pricing_key = candidate
                 break
 
         if pricing_entry is None or pricing_key is None:
             raise ValueError(
-                f"No pricing config with key={base_price_key} found for "
-                f"Volcengine video model={pricing_model}"
+                f"No Volcengine video pricing config found for model={pricing_model}"
+            )
+
+        # Seedance 1.5 Pro prices by whether audio was generated; the 2.0 family
+        # prices by whether the request referenced an input video. Use whichever
+        # dimension the matched entry actually defines.
+        if any(pricing_entry.get(key) is not None for key in audio_base_keys):
+            base_price_key = (
+                "volcengine_video_output_cost_per_million_tokens_with_audio"
+                if generate_audio
+                else "volcengine_video_output_cost_per_million_tokens_without_audio"
+            )
+        else:
+            base_price_key = (
+                "volcengine_video_output_cost_per_million_tokens_with_input_video"
+                if has_input_video
+                else "volcengine_video_output_cost_per_million_tokens_without_input_video"
             )
 
         price_key = base_price_key
@@ -1432,13 +1531,13 @@ class VolcengineVideoBillingManager:
         should_register = False
         for model_name, model_info in VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS.items():
             existing_model_info = litellm.model_cost.get(model_name) or {}
+            required_keys = ["provider_pricing_currency"] + [
+                key
+                for key in model_info
+                if key.startswith("volcengine_video_output_cost_per_million_tokens")
+            ]
             if not all(
-                key in existing_model_info
-                for key in (
-                    "provider_pricing_currency",
-                    "volcengine_video_output_cost_per_million_tokens_without_input_video",
-                    "volcengine_video_output_cost_per_million_tokens_with_input_video",
-                )
+                existing_model_info.get(key) is not None for key in required_keys
             ):
                 should_register = True
                 break

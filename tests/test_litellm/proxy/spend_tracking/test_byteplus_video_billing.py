@@ -90,6 +90,13 @@ class TestBytePlusPricingModelNormalization:
         assert "byteplus/dreamina-seedance-2-0-260128" in candidates
         assert "byteplus/dreamina-seedance-2.0-260128" in candidates
 
+    def test_candidate_pricing_models_seedance_without_dreamina_prefix(self):
+        candidates = _candidate_pricing_models("byteplus/seedance-1-5-pro-251215")
+        assert "byteplus/seedance-1-5-pro-251215" in candidates
+        assert "byteplus/seedance-1-5-pro" in candidates
+        assert "byteplus/seedance-1.5-pro" in candidates
+        assert "byteplus/seedance-1.5-pro" in candidates
+
 
 class TestBytePlusShouldHandleSuccessEvent:
     """Test that the billing manager handles BytePlus video events."""
