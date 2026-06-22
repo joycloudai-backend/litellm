@@ -15,6 +15,8 @@ from litellm.proxy.spend_tracking.volcengine_video_billing import (
     _candidate_pricing_models,
     _is_1080p_resolution,
     _normalize_pricing_model,
+    get_ark_video_pricing_entry,
+    register_ark_video_pricing_models,
 )
 from litellm.types.videos.main import VideoObject
 
@@ -95,7 +97,36 @@ class TestBytePlusPricingModelNormalization:
         assert "byteplus/seedance-1-5-pro-251215" in candidates
         assert "byteplus/seedance-1-5-pro" in candidates
         assert "byteplus/seedance-1.5-pro" in candidates
-        assert "byteplus/seedance-1.5-pro" in candidates
+
+    def test_candidate_pricing_models_seedance_10_pro_versioned(self):
+        candidates = _candidate_pricing_models("byteplus/seedance-1-0-pro-250528")
+        assert "byteplus/seedance-1-0-pro-250528" in candidates
+        assert "byteplus/seedance-1-0-pro" in candidates
+        assert "byteplus/seedance-1.0-pro" in candidates
+
+
+class TestBytePlusSeedance10ProPricing:
+    def test_resolve_pricing_snapshot_seedance_10_pro(self):
+        import litellm
+        from unittest.mock import patch
+        from litellm.proxy.spend_tracking.volcengine_video_billing import (
+            VolcengineVideoBillingManager,
+        )
+        from unittest.mock import MagicMock
+
+        manager = VolcengineVideoBillingManager(
+            prisma_client=MagicMock(),
+            llm_router=MagicMock(),
+            db_spend_update_writer=MagicMock(),
+            proxy_logging_obj=MagicMock(),
+        )
+        with patch.dict(litellm.model_cost, {}, clear=True):
+            unit_price, currency = manager._resolve_pricing_snapshot(
+                pricing_model="byteplus/seedance-1-0-pro-250528",
+                has_input_video=False,
+            )
+        assert unit_price == 2.5
+        assert currency == "USD"
 
 
 class TestBytePlusShouldHandleSuccessEvent:
@@ -409,6 +440,73 @@ class TestFinalUnitPriceResolution:
         task = self._make_task(price_per_million_tokens=7.7)
         video = self._make_video_response(resolution=None)
         assert manager._resolve_final_unit_price(task=task, video_response=video) == 7.7
+
+
+class TestArkVideoPricingRegistration:
+    """register_ark_video_pricing_models seeds litellm.model_cost so /v1/model/info
+    can resolve video pricing even before the first billing event."""
+
+    def test_register_populates_model_cost(self):
+        import litellm
+
+        with patch.dict(litellm.model_cost, {}, clear=True):
+            register_ark_video_pricing_models()
+            entry = litellm.model_cost.get("volcengine/doubao-seedance-2.0")
+            assert entry is not None
+            assert (
+                entry[
+                    "volcengine_video_output_cost_per_million_tokens_without_input_video"
+                ]
+                == 46.0
+            )
+            assert entry["provider_pricing_currency"] == "CNY"
+
+
+class TestArkVideoPricingEntryResolution:
+    """get_ark_video_pricing_entry backs the /v1/model/info enrichment: it must
+    honor provider_pricing_model first, normalize dashed/versioned ids, and never
+    match non-ark models."""
+
+    def test_resolves_via_versioned_base_model(self):
+        import litellm
+
+        with patch.dict(litellm.model_cost, {}, clear=True):
+            entry = get_ark_video_pricing_entry(
+                {"base_model": "volcengine/doubao-seedance-2-0-260128"}
+            )
+        assert entry is not None
+        assert entry["provider_pricing_currency"] == "CNY"
+        assert (
+            entry["volcengine_video_output_cost_per_million_tokens_without_input_video"]
+            == 46.0
+        )
+
+    def test_provider_pricing_model_takes_priority_over_base_model(self):
+        import litellm
+
+        with patch.dict(litellm.model_cost, {}, clear=True):
+            entry = get_ark_video_pricing_entry(
+                {
+                    "provider_pricing_model": "volcengine/doubao-seedance-2.0",
+                    "base_model": "byteplus/dreamina-seedance-2.0",
+                }
+            )
+        assert entry is not None
+        # volcengine entry is CNY; byteplus base_model would be USD
+        assert entry["provider_pricing_currency"] == "CNY"
+
+    def test_returns_none_without_pricing_fields(self):
+        import litellm
+
+        with patch.dict(litellm.model_cost, {}, clear=True):
+            assert get_ark_video_pricing_entry({}) is None
+
+    def test_does_not_match_non_ark_model(self):
+        import litellm
+
+        with patch.dict(litellm.model_cost, {}, clear=True):
+            register_ark_video_pricing_models()
+            assert get_ark_video_pricing_entry({"base_model": "gpt-4o"}) is None
 
 
 class TestBytePlusUsdConversion:

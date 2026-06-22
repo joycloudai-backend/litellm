@@ -66,6 +66,9 @@ VOLCENGINE_VIDEO_PENDING_STATUSES = {"queued", "processing"}
 VOLCENGINE_VIDEO_NO_CHARGE_STATUSES = {"failed", "cancelled", "expired", "deleted"}
 VOLCENGINE_VIDEO_COMPLETED_STATUS = "completed"
 VOLCENGINE_VIDEO_DEFAULT_PRICING_MODEL = "volcengine/doubao-seedance-2.0"
+VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX = (
+    "volcengine_video_output_cost_per_million_tokens"
+)
 VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS = 15
 VOLCENGINE_VIDEO_RETRY_INTERVAL_SECONDS = 60
 VOLCENGINE_VIDEO_CNY_PER_USD_ENV = "LITELLM_VOLCENGINE_VIDEO_CNY_PER_USD"
@@ -157,7 +160,76 @@ VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
         "volcengine_video_output_cost_per_million_tokens_without_audio": 1.2,
         "volcengine_video_output_cost_per_million_tokens_with_audio": 2.4,
     },
+    "byteplus/seedance-1-0-pro": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": ["text", "image"],
+        "supported_output_modalities": ["video"],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 2.5,
+    },
 }
+
+
+def _entry_has_video_pricing(entry: Optional[Dict[str, Any]]) -> bool:
+    if not entry:
+        return False
+    return any(
+        key.startswith(VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX)
+        and entry.get(key) is not None
+        for key in entry
+    )
+
+
+def register_ark_video_pricing_models() -> None:
+    """
+    Register the in-code Volcengine/BytePlus video pricing entries into
+    litellm.model_cost so both async billing and /v1/model/info can resolve
+    them. Idempotent: registers only when an entry is missing required keys.
+    """
+    for model_name, model_info in VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS.items():
+        existing_model_info = litellm.model_cost.get(model_name) or {}
+        required_keys = ["provider_pricing_currency"] + [
+            key
+            for key in model_info
+            if key.startswith(VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX)
+        ]
+        if not all(existing_model_info.get(key) is not None for key in required_keys):
+            litellm.register_model(model_cost=VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS)
+            verbose_proxy_logger.info(
+                "Registered runtime pricing overrides for Volcengine video billing"
+            )
+            return
+
+
+def get_ark_video_pricing_entry(
+    model_info: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """
+    Resolve the Volcengine/BytePlus video pricing entry for a deployment's
+    model_info, preferring provider_pricing_model over base_model and applying
+    the same dotted/versionless candidate normalization the billing path uses
+    (e.g. "volcengine/doubao-seedance-2-0-260128" -> "volcengine/doubao-seedance-2.0").
+
+    Returns the litellm.model_cost entry carrying the
+    volcengine_video_output_cost_per_million_tokens_* keys, or None when no
+    pricing config matches.
+    """
+    pricing_model = model_info.get("provider_pricing_model") or model_info.get(
+        "base_model"
+    )
+    if not pricing_model:
+        return None
+    register_ark_video_pricing_models()
+    for candidate in _candidate_pricing_models(str(pricing_model)):
+        entry = litellm.model_cost.get(candidate)
+        if _entry_has_video_pricing(entry):
+            return entry
+    return None
 
 
 def _now_utc() -> datetime:
@@ -195,7 +267,6 @@ def _candidate_pricing_models(model_name: str) -> List[str]:
         dotted = re.sub(r"(\d)-(\d)", r"\1.\2", variant)
         if dotted != variant:
             raw_variants.append(dotted)
-
 
     candidates: List[str] = []
     for variant in raw_variants:
@@ -1527,27 +1598,7 @@ class VolcengineVideoBillingManager:
     def _ensure_runtime_pricing_models_registered(self) -> None:
         if self._pricing_models_registered:
             return
-
-        should_register = False
-        for model_name, model_info in VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS.items():
-            existing_model_info = litellm.model_cost.get(model_name) or {}
-            required_keys = ["provider_pricing_currency"] + [
-                key
-                for key in model_info
-                if key.startswith("volcengine_video_output_cost_per_million_tokens")
-            ]
-            if not all(
-                existing_model_info.get(key) is not None for key in required_keys
-            ):
-                should_register = True
-                break
-
-        if should_register:
-            litellm.register_model(model_cost=VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS)
-            verbose_proxy_logger.info(
-                "Registered runtime pricing overrides for Volcengine video billing"
-            )
-
+        register_ark_video_pricing_models()
         self._pricing_models_registered = True
 
     def _get_video_task_table_model(self) -> Optional[Any]:
