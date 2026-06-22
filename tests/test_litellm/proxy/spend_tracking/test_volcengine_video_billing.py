@@ -143,7 +143,8 @@ async def test_register_pending_video_task_uses_versionless_pricing_without_inpu
     assert upsert_data["metadata"].data == {
         "request_content": [
             {"type": "text", "text": "Create a cinematic fruit tea ad"},
-        ]
+        ],
+        "generate_audio": False,
     }
 
 
@@ -892,3 +893,185 @@ async def test_finalize_completed_task_applies_custom_discount():
         manager.prisma_client.db.litellm_videotasktable.update.call_args.kwargs["data"]
     )
     assert update_data["spend"] == pytest.approx(expected_spend)
+
+
+@pytest.fixture
+def patched_seedance_15_model_cost():
+    with patch.dict(
+        litellm.model_cost,
+        {
+            "volcengine/seedance-1.5-pro": {
+                "provider_pricing_currency": "CNY",
+                "volcengine_video_output_cost_per_million_tokens_without_audio": 8.0,
+                "volcengine_video_output_cost_per_million_tokens_with_audio": 16.0,
+            },
+            "byteplus/seedance-1.5-pro": {
+                "provider_pricing_currency": "USD",
+                "volcengine_video_output_cost_per_million_tokens_without_audio": 1.2,
+                "volcengine_video_output_cost_per_million_tokens_with_audio": 2.4,
+            },
+        },
+        clear=False,
+    ):
+        yield
+
+
+def test_resolve_pricing_snapshot_prices_seedance_15_by_audio(
+    patched_seedance_15_model_cost,
+):
+    manager = _build_manager()
+
+    with_audio, currency = manager._resolve_pricing_snapshot(
+        pricing_model="volcengine/seedance-1-5-pro-251215",
+        has_input_video=True,
+        generate_audio=True,
+    )
+    assert with_audio == 16.0
+    assert currency == "CNY"
+
+    # has_input_video is irrelevant for an audio-priced model.
+    without_audio, _ = manager._resolve_pricing_snapshot(
+        pricing_model="volcengine/seedance-1-5-pro-251215",
+        has_input_video=True,
+        generate_audio=False,
+    )
+    assert without_audio == 8.0
+
+
+def test_resolve_pricing_snapshot_seedance_15_byteplus_usd(
+    patched_seedance_15_model_cost,
+):
+    manager = _build_manager()
+    unit_price, currency = manager._resolve_pricing_snapshot(
+        pricing_model="byteplus/seedance-1-5-pro-251215",
+        has_input_video=False,
+        generate_audio=True,
+    )
+    assert unit_price == 2.4
+    assert currency == "USD"
+
+
+def test_resolve_pricing_snapshot_byteplus_seedance_without_dreamina_prefix(
+    patched_seedance_15_model_cost,
+):
+    manager = _build_manager()
+    unit_price, currency = manager._resolve_pricing_snapshot(
+        pricing_model="byteplus/seedance-1-5-pro-251215",
+        has_input_video=False,
+        generate_audio=False,
+    )
+    assert unit_price == 1.2
+    assert currency == "USD"
+
+
+@pytest.mark.asyncio
+async def test_register_pending_task_seedance_15_with_audio(
+    patched_seedance_15_model_cost,
+):
+    manager = _build_manager()
+    kwargs = _build_generation_kwargs(base_model="seedance-1-5-pro-251215")
+    kwargs["optional_params"] = {"generate_audio": True}
+    response = VideoObject(
+        id="video_15_audio_on",
+        object="video",
+        status="queued",
+        model="ep-15-pro",
+        seconds="5",
+        usage={"duration_seconds": 5.0},
+    )
+
+    await manager.handle_success_event(kwargs=kwargs, completion_response=response)
+
+    upsert_data = (
+        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
+            "create"
+        ]
+    )
+    assert upsert_data["pricing_model"] == "volcengine/seedance-1-5-pro-251215"
+    assert upsert_data["price_per_million_tokens"] == 16.0
+    assert upsert_data["pricing_currency"] == "CNY"
+    assert upsert_data["metadata"].data["generate_audio"] is True
+
+
+@pytest.mark.asyncio
+async def test_register_pending_task_seedance_15_without_audio(
+    patched_seedance_15_model_cost,
+):
+    manager = _build_manager()
+    kwargs = _build_generation_kwargs(base_model="seedance-1-5-pro-251215")
+    response = VideoObject(
+        id="video_15_audio_off",
+        object="video",
+        status="queued",
+        model="ep-15-pro",
+        seconds="5",
+        usage={"duration_seconds": 5.0},
+    )
+
+    await manager.handle_success_event(kwargs=kwargs, completion_response=response)
+
+    upsert_data = (
+        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
+            "create"
+        ]
+    )
+    assert upsert_data["price_per_million_tokens"] == 8.0
+    assert upsert_data["metadata"].data["generate_audio"] is False
+
+
+@pytest.mark.asyncio
+async def test_finalize_completed_task_uses_audio_price_for_seedance_15(
+    patched_seedance_15_model_cost,
+):
+    manager = _build_manager()
+    manager._apply_async_billing_delta = AsyncMock()
+    manager._upsert_final_spend_log = AsyncMock()
+    manager.prisma_client.db.litellm_videotasktable.update_many.return_value = 1
+
+    # Registration snapshotted the no-resolution without-audio price, but the
+    # completed task is an audio generation, so settlement must re-resolve to
+    # the with-audio price using the generate_audio flag persisted in metadata.
+    task = SimpleNamespace(
+        video_id="video_15_finalize_audio",
+        billing_state="pending",
+        price_per_million_tokens=8.0,
+        pricing_currency="CNY",
+        pricing_model="volcengine/seedance-1-5-pro-251215",
+        has_input_video=False,
+        metadata={"generate_audio": True},
+        spend=0.0,
+        prompt_tokens=0,
+        completion_tokens=0,
+        created_at=datetime.now(timezone.utc),
+        api_key="hashed-key-123",
+        user="user-1",
+        team_id="team-1",
+        organization_id="org-1",
+        end_user="end-user-1",
+        model="seedance-15",
+        model_group="seedance-15",
+        model_id="deployment-123",
+        request_tags=["video-billing"],
+        custom_llm_provider="volcengine",
+    )
+    video_response = VideoObject(
+        id=task.video_id,
+        object="video",
+        status="completed",
+        completed_at=1775549339,
+        model="ep-15-pro",
+        seconds="5",
+        size="16:9",
+        usage={
+            "total_tokens": 100000,
+            "completion_tokens": 100000,
+            "duration_seconds": 5.0,
+            "resolution": "720p",
+        },
+    )
+
+    await manager._finalize_completed_task(task=task, video_response=video_response)
+
+    expected_provider_spend = 100000 / 1_000_000 * 16.0
+    delta_call = manager._apply_async_billing_delta.call_args.kwargs
+    assert delta_call["provider_delta_spend"] == pytest.approx(expected_provider_spend)
