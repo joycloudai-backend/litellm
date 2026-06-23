@@ -39,6 +39,10 @@ class TestBytePlusBillingConstants:
             "byteplus/dreamina-seedance-2.0-fast"
             in VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS
         )
+        assert (
+            "byteplus/dreamina-seedance-2.0-mini"
+            in VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS
+        )
 
     def test_byteplus_runtime_pricing_is_usd(self):
         model = VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS[
@@ -59,6 +63,21 @@ class TestBytePlusBillingConstants:
         assert (
             model["volcengine_video_output_cost_per_million_tokens_with_input_video"]
             == 3.3
+        )
+
+    def test_byteplus_mini_runtime_pricing_is_usd(self):
+        model = VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS[
+            "byteplus/dreamina-seedance-2.0-mini"
+        ]
+        assert model["provider_pricing_currency"] == "USD"
+        assert model["litellm_provider"] == "byteplus"
+        assert (
+            model["volcengine_video_output_cost_per_million_tokens_without_input_video"]
+            == 3.5
+        )
+        assert (
+            model["volcengine_video_output_cost_per_million_tokens_with_input_video"]
+            == 2.1
         )
 
 
@@ -91,6 +110,14 @@ class TestBytePlusPricingModelNormalization:
         candidates = _candidate_pricing_models("byteplus/dreamina-seedance-2-0-260128")
         assert "byteplus/dreamina-seedance-2-0-260128" in candidates
         assert "byteplus/dreamina-seedance-2.0-260128" in candidates
+
+    def test_candidate_pricing_models_seedance_20_mini_versioned(self):
+        candidates = _candidate_pricing_models(
+            "byteplus/dreamina-seedance-2-0-mini-260615"
+        )
+        assert "byteplus/dreamina-seedance-2-0-mini-260615" in candidates
+        assert "byteplus/dreamina-seedance-2-0-mini" in candidates
+        assert "byteplus/dreamina-seedance-2.0-mini" in candidates
 
     def test_candidate_pricing_models_seedance_without_dreamina_prefix(self):
         candidates = _candidate_pricing_models("byteplus/seedance-1-5-pro-251215")
@@ -126,6 +153,39 @@ class TestBytePlusSeedance10ProPricing:
                 has_input_video=False,
             )
         assert unit_price == 2.5
+        assert currency == "USD"
+
+
+class TestBytePlusDreaminaSeedance20MiniPricing:
+    @pytest.mark.parametrize(
+        "has_input_video,resolution,expected_unit_price",
+        [
+            (False, "720p", 3.5),
+            (True, "720p", 2.1),
+            (False, "1080p", 3.5),
+        ],
+    )
+    def test_resolve_pricing_snapshot(
+        self,
+        has_input_video,
+        resolution,
+        expected_unit_price,
+    ):
+        import litellm
+
+        manager = VolcengineVideoBillingManager(
+            prisma_client=MagicMock(),
+            llm_router=MagicMock(),
+            db_spend_update_writer=MagicMock(),
+            proxy_logging_obj=MagicMock(),
+        )
+        with patch.dict(litellm.model_cost, {}, clear=True):
+            unit_price, currency = manager._resolve_pricing_snapshot(
+                pricing_model="byteplus/dreamina-seedance-2-0-mini-260615",
+                has_input_video=has_input_video,
+                resolution=resolution,
+            )
+        assert unit_price == expected_unit_price
         assert currency == "USD"
 
 

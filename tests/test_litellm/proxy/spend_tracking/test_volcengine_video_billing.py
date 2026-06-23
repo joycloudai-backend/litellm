@@ -97,6 +97,32 @@ def patched_volcengine_model_cost():
         yield
 
 
+@pytest.mark.parametrize(
+    "has_input_video,resolution,expected_unit_price",
+    [
+        (False, "480p", 23.0),
+        (False, "720p", 23.0),
+        (True, "720p", 14.0),
+    ],
+)
+def test_resolve_pricing_snapshot_doubao_seedance_20_mini(
+    has_input_video,
+    resolution,
+    expected_unit_price,
+):
+    manager = _build_manager()
+
+    with patch.dict(litellm.model_cost, {}, clear=True):
+        unit_price, currency = manager._resolve_pricing_snapshot(
+            pricing_model="volcengine/doubao-seedance-2-0-mini-260615",
+            has_input_video=has_input_video,
+            resolution=resolution,
+        )
+
+    assert unit_price == expected_unit_price
+    assert currency == "CNY"
+
+
 @pytest.mark.asyncio
 async def test_register_pending_video_task_uses_versionless_pricing_without_input_video(
     patched_volcengine_model_cost,
