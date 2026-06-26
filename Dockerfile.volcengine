@@ -47,8 +47,5 @@ RUN set -eux; \
     cp -f /overlay/model_prices_and_context_window.json "$SITE/model_prices_and_context_window_backup.json"; \
     cp -f /overlay/provider_endpoints_support.json "$SITE/provider_endpoints_support_backup.json"; \
     cp -f /overlay/schema.prisma /app/schema.prisma; \
-    rm -rf /overlay
-
-USER 65534
-
-RUN prisma generate --schema=/app/schema.prisma
+    rm -rf /overlay; \
+    prisma generate --schema=/app/schema.prisma
