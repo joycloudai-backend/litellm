@@ -347,6 +347,18 @@ model LiteLLM_MCPServerTable {
   @@index([approval_status])
 }
 
+// Named collection of {server_id, tool_name} pairs that can be granted to keys/teams
+model LiteLLM_MCPToolsetTable {
+  toolset_id   String   @id @default(uuid())
+  toolset_name String   @unique
+  description  String?
+  tools        Json     @default("[]") // [{server_id: string, tool_name: string}]
+  created_at   DateTime @default(now())
+  created_by   String?
+  updated_at   DateTime @default(now()) @updatedAt
+  updated_by   String?
+}
+
 // Per-user BYOK credentials for MCP servers
 model LiteLLM_MCPUserCredentials {
   id             String   @id @default(uuid())
@@ -1084,12 +1096,15 @@ model LiteLLM_PromptTable {
   id String @id @default(uuid())
   prompt_id String
   version Int @default(1)
+  environment String @default("development")
+  created_by String?
   litellm_params Json
   prompt_info Json?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  @@unique([prompt_id, version])
+  @@unique([prompt_id, version, environment])
+  @@index([prompt_id, environment])
   @@index([prompt_id])
 }
 

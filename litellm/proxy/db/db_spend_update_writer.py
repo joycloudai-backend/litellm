@@ -862,7 +862,6 @@ class DBSpendUpdateWriter:
             daily_org_spend_update_queue=self.daily_org_spend_update_queue,
             daily_end_user_spend_update_queue=self.daily_end_user_spend_update_queue,
             daily_agent_spend_update_queue=self.daily_agent_spend_update_queue,
-            daily_tag_spend_update_queue=self.daily_tag_spend_update_queue,
         )
 
         # Only commit from redis to db if this pod is the leader
@@ -879,7 +878,6 @@ class DBSpendUpdateWriter:
                     daily_org_spend_update_transactions,
                     daily_end_user_spend_update_transactions,
                     daily_agent_spend_update_transactions,
-                    daily_tag_spend_update_transactions,
                 ) = (
                     await self.redis_update_buffer.get_all_transactions_from_redis_buffer_pipeline()
                 )
@@ -955,13 +953,6 @@ class DBSpendUpdateWriter:
                         daily_spend_transactions=daily_org_spend_update_transactions,
                     )
 
-                if daily_tag_spend_update_transactions is not None:
-                    await DBSpendUpdateWriter.update_daily_tag_spend(
-                        n_retry_times=n_retry_times,
-                        prisma_client=prisma_client,
-                        proxy_logging_obj=proxy_logging_obj,
-                        daily_spend_transactions=daily_tag_spend_update_transactions,
-                    )
                 if daily_end_user_spend_update_transactions is not None:
                     await DBSpendUpdateWriter.update_daily_end_user_spend(
                         n_retry_times=n_retry_times,
@@ -1056,19 +1047,7 @@ class DBSpendUpdateWriter:
             daily_spend_transactions=daily_org_spend_update_transactions,
         )
 
-        ################## Daily Tag Spend Update Transactions ##################
-        # Aggregate all in memory daily tag spend transactions and commit to db
-        daily_tag_spend_update_transactions = cast(
-            Dict[str, DailyTagSpendTransaction],
-            await self.daily_tag_spend_update_queue.flush_and_get_aggregated_daily_spend_update_transactions(),
-        )
-
-        await DBSpendUpdateWriter.update_daily_tag_spend(
-            n_retry_times=n_retry_times,
-            prisma_client=prisma_client,
-            proxy_logging_obj=proxy_logging_obj,
-            daily_spend_transactions=daily_tag_spend_update_transactions,
-        )
+        # NOTE: Daily tag spend is committed by a separate scheduler job.
 
         ################## Daily End-User Spend Update Transactions ##################
         # Aggregate all in memory daily end-user spend transactions and commit to db
@@ -2102,12 +2081,8 @@ class DBSpendUpdateWriter:
                     if async_billing_only
                     else (1 if request_status != "success" else 0)
                 ),
-                cache_read_input_tokens=usage_obj.get("cache_read_input_tokens", 0)
-                or 0,
-                cache_creation_input_tokens=usage_obj.get(
-                    "cache_creation_input_tokens", 0
-                )
-                or 0,
+                cache_read_input_tokens=_extract_cache_read_tokens(usage_obj),
+                cache_creation_input_tokens=_extract_cache_creation_tokens(usage_obj),
             )
             return daily_transaction
         except Exception as e:
