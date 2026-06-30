@@ -12,9 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import litellm
 
-sys.path.insert(
-    0, os.path.abspath("../../../..")
-)  # Adds the parent directory to the system path
+sys.path.insert(0, os.path.abspath("../../../.."))  # Adds the parent directory to the system path
 
 # Mock prisma.Json before importing the module under test
 import prisma
@@ -153,11 +151,7 @@ async def test_register_pending_video_task_uses_versionless_pricing_without_inpu
     assert kwargs["standard_logging_object"]["response_cost"] == 0.0
 
     manager.prisma_client.db.litellm_videotasktable.upsert.assert_awaited_once()
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert upsert_data["pricing_model"] == "volcengine/doubao-seedance-2.0-260128"
     assert upsert_data["price_per_million_tokens"] == 46.0
     assert upsert_data["pricing_currency"] == "CNY"
@@ -199,11 +193,7 @@ async def test_register_pending_video_task_resolves_dash_versioned_model(
 
     assert overridden_cost == 0.0
     manager.prisma_client.db.litellm_videotasktable.upsert.assert_awaited_once()
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert upsert_data["price_per_million_tokens"] == 46.0
     assert upsert_data["pricing_currency"] == "CNY"
 
@@ -234,11 +224,7 @@ async def test_register_pending_video_task_uses_input_video_price(
 
     await manager.handle_success_event(kwargs=kwargs, completion_response=response)
 
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert upsert_data["price_per_million_tokens"] == 28.0
     assert upsert_data["has_input_video"] is True
 
@@ -265,11 +251,7 @@ async def test_register_pending_video_task_auto_registers_runtime_pricing_models
         await manager.handle_success_event(kwargs=kwargs, completion_response=response)
 
         assert "volcengine/doubao-seedance-2.0" in litellm.model_cost
-        upsert_data = (
-            manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs[
-                "data"
-            ]["create"]
-        )
+        upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
         assert upsert_data["price_per_million_tokens"] == 46.0
         assert upsert_data["pricing_currency"] == "CNY"
 
@@ -297,11 +279,7 @@ async def test_register_pending_video_task_accepts_dict_response_and_create_vide
 
     assert overridden_cost == 0.0
     manager.prisma_client.db.litellm_videotasktable.upsert.assert_awaited_once()
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert upsert_data["video_id"] == "video_test_dict_create"
     assert upsert_data["provider_model"] == "ep-20260402174450-9qflb"
     assert upsert_data["price_per_million_tokens"] == 46.0
@@ -321,14 +299,12 @@ async def test_register_pending_video_task_rebuilds_request_content_from_existin
         seconds="5",
         usage={"duration_seconds": 5.0},
     )
-    manager.prisma_client.db.litellm_spendlogs.find_unique.return_value = (
-        SimpleNamespace(
-            proxy_server_request={
-                "prompt": "Create a cinematic fruit tea ad",
-                "seconds": "5",
-                "size": "1280x720",
-            }
-        )
+    manager.prisma_client.db.litellm_spendlogs.find_unique.return_value = SimpleNamespace(
+        proxy_server_request={
+            "prompt": "Create a cinematic fruit tea ad",
+            "seconds": "5",
+            "size": "1280x720",
+        }
     )
 
     await manager._register_pending_video_task(
@@ -336,11 +312,7 @@ async def test_register_pending_video_task_rebuilds_request_content_from_existin
         completion_response=response,
     )
 
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert isinstance(upsert_data["metadata"], prisma.Json)
     assert upsert_data["metadata"].data["request_content"] == [
         {"type": "text", "text": "Create a cinematic fruit tea ad"}
@@ -368,14 +340,12 @@ async def test_register_pending_video_task_prefers_existing_spend_log_identity(
             {"type": "text", "text": "Create a cinematic fruit tea ad"},
         ]
     }
-    manager.prisma_client.db.litellm_spendlogs.find_unique.return_value = (
-        SimpleNamespace(
-            api_key="original-hash-123",
-            user="original-user",
-            team_id="original-team",
-            organization_id="original-org",
-            end_user="original-end-user",
-        )
+    manager.prisma_client.db.litellm_spendlogs.find_unique.return_value = SimpleNamespace(
+        api_key="original-hash-123",
+        user="original-user",
+        team_id="original-team",
+        organization_id="original-org",
+        end_user="original-end-user",
     )
 
     await manager._register_pending_video_task(
@@ -383,11 +353,7 @@ async def test_register_pending_video_task_prefers_existing_spend_log_identity(
         completion_response=response,
     )
 
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert upsert_data["api_key"] == "original-hash-123"
     assert upsert_data["user"] == "original-user"
     assert upsert_data["team_id"] == "original-team"
@@ -401,9 +367,7 @@ async def test_reconcile_task_from_video_response_reregisters_missing_task_when_
     manager._register_pending_video_task = AsyncMock()
     manager._finalize_completed_task = AsyncMock()
     task = SimpleNamespace(video_id="video_test_reregister", billing_state="pending")
-    manager.prisma_client.db.litellm_videotasktable.find_unique = AsyncMock(
-        side_effect=[None, task]
-    )
+    manager.prisma_client.db.litellm_videotasktable.find_unique = AsyncMock(side_effect=[None, task])
     kwargs = _build_generation_kwargs(base_model="doubao-seedance-2.0-260128")
     response = VideoObject(
         id="video_test_reregister",
@@ -485,14 +449,10 @@ async def test_finalize_completed_task_bills_from_provider_total_tokens():
     manager._upsert_final_spend_log.assert_awaited_once()
     upsert_call = manager._upsert_final_spend_log.call_args.kwargs
     assert upsert_call["final_spend"] == pytest.approx(expected_spend)
-    assert upsert_call["provider_spend_amount"] == pytest.approx(
-        expected_provider_spend
-    )
+    assert upsert_call["provider_spend_amount"] == pytest.approx(expected_provider_spend)
     assert upsert_call["total_tokens"] == 238500
     assert upsert_call["completion_tokens"] == 238500
-    update_data = (
-        manager.prisma_client.db.litellm_videotasktable.update.call_args.kwargs["data"]
-    )
+    update_data = manager.prisma_client.db.litellm_videotasktable.update.call_args.kwargs["data"]
     assert update_data["billing_state"] == "billed"
     assert update_data["spend"] == pytest.approx(expected_spend)
     assert update_data["total_tokens"] == 238500
@@ -518,11 +478,9 @@ async def test_upsert_final_spend_log_wraps_json_fields_for_prisma():
         request_tags=["video-billing"],
         created_at=datetime.now(timezone.utc),
     )
-    manager.prisma_client.db.litellm_spendlogs.find_unique.return_value = (
-        SimpleNamespace(
-            request_id=task.video_id,
-            metadata={"existing": True},
-        )
+    manager.prisma_client.db.litellm_spendlogs.find_unique.return_value = SimpleNamespace(
+        request_id=task.video_id,
+        metadata={"existing": True},
     )
 
     await manager._upsert_final_spend_log(
@@ -536,16 +494,12 @@ async def test_upsert_final_spend_log_wraps_json_fields_for_prisma():
     )
 
     manager.prisma_client.db.litellm_spendlogs.update.assert_awaited_once()
-    update_data = manager.prisma_client.db.litellm_spendlogs.update.call_args.kwargs[
-        "data"
-    ]
+    update_data = manager.prisma_client.db.litellm_spendlogs.update.call_args.kwargs["data"]
     assert isinstance(update_data["metadata"], prisma.Json)
     assert update_data["metadata"].data["existing"] is True
     assert update_data["metadata"].data["provider_spend_amount"] == 5.0
     assert update_data["metadata"].data["billing_spend_currency"] == "USD"
-    assert update_data["metadata"].data["billing_spend_amount"] == pytest.approx(
-        0.6944444444
-    )
+    assert update_data["metadata"].data["billing_spend_amount"] == pytest.approx(0.6944444444)
 
 
 def test_build_final_spend_log_metadata_preserves_existing_dict_metadata():
@@ -571,9 +525,7 @@ def test_build_final_spend_log_metadata_preserves_existing_dict_metadata():
     assert metadata["video_billing_task_id"] == "video_test_789"
 
 
-@pytest.mark.skip(
-    reason="Requires full proxy_server dependencies - tested via integration tests"
-)
+@pytest.mark.skip(reason="Requires full proxy_server dependencies - tested via integration tests")
 @pytest.mark.asyncio
 async def test_apply_async_billing_delta_prefers_existing_spend_log_identity():
     """This test requires proxy_server dependencies (orjson, fastapi, etc).
@@ -601,6 +553,57 @@ async def test_poll_pending_video_tasks_disables_itself_when_prisma_client_missi
     warning_mock.assert_called_once()
 
 
+def _db_unreachable_error() -> prisma.errors.DataError:
+    # prisma-client-py surfaces the P1001 "can't reach database server"
+    # connectivity failure as a DataError; this mirrors the real pod logs.
+    return prisma.errors.DataError(
+        {},
+        message=("Can't reach database server at `dev.c72gyayysqi0.ap-southeast-1.rds.amazonaws.com`:`5432`"),
+    )
+
+
+@pytest.mark.asyncio
+async def test_poll_pending_video_tasks_reconnects_and_retries_on_transport_error():
+    """Layer 1: a transient DB transport blip self-heals via one
+    reconnect-and-retry, exactly like the proxy's core read paths."""
+    manager = _build_manager()
+    manager.prisma_client.db.litellm_videotasktable.find_many = AsyncMock(side_effect=[_db_unreachable_error(), []])
+    manager.prisma_client.attempt_db_reconnect = AsyncMock(return_value=True)
+
+    await manager.poll_pending_video_tasks()
+
+    manager.prisma_client.attempt_db_reconnect.assert_awaited_once()
+    assert manager.prisma_client.db.litellm_videotasktable.find_many.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_poll_pending_video_tasks_swallows_db_outage_without_raising():
+    """Layer 2: when the DB stays unreachable (reconnect didn't recover), the
+    poller skips the cycle with a single error log instead of letting a full
+    traceback hit the scheduler every minute."""
+    manager = _build_manager()
+    manager.prisma_client.db.litellm_videotasktable.find_many = AsyncMock(side_effect=_db_unreachable_error())
+    manager.prisma_client.attempt_db_reconnect = AsyncMock(return_value=False)
+
+    with patch.object(verbose_proxy_logger, "error") as error_mock:
+        # Must not raise - apscheduler would otherwise log a stack trace.
+        await manager.poll_pending_video_tasks()
+
+    error_mock.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_poll_pending_video_tasks_reraises_non_db_errors():
+    """A genuine bug (not a DB outage) must still propagate so it stays
+    visible rather than being silently swallowed."""
+    manager = _build_manager()
+    manager.prisma_client.db.litellm_videotasktable.find_many = AsyncMock(side_effect=ValueError("boom"))
+    manager.prisma_client.attempt_db_reconnect = AsyncMock(return_value=False)
+
+    with pytest.raises(ValueError, match="boom"):
+        await manager.poll_pending_video_tasks()
+
+
 class TestSnapshotCustomDiscount:
     """Discounts must be captured from the same metadata locations the chat hook
     reads, so team-level discounts (surfaced under user_api_key_auth_metadata)
@@ -609,20 +612,12 @@ class TestSnapshotCustomDiscount:
     def test_reads_top_level_custom_discount(self):
         manager = _build_manager()
         metadata = {"custom_discount": {"volcengine/doubao-seedance-2.0": 0.8}}
-        assert manager._snapshot_custom_discount(metadata) == {
-            "volcengine/doubao-seedance-2.0": 0.8
-        }
+        assert manager._snapshot_custom_discount(metadata) == {"volcengine/doubao-seedance-2.0": 0.8}
 
     def test_reads_team_discount_from_auth_metadata(self):
         manager = _build_manager()
-        metadata = {
-            "user_api_key_auth_metadata": {
-                "custom_discount": {"volcengine/doubao-seedance-2.0": 0.7}
-            }
-        }
-        assert manager._snapshot_custom_discount(metadata) == {
-            "volcengine/doubao-seedance-2.0": 0.7
-        }
+        metadata = {"user_api_key_auth_metadata": {"custom_discount": {"volcengine/doubao-seedance-2.0": 0.7}}}
+        assert manager._snapshot_custom_discount(metadata) == {"volcengine/doubao-seedance-2.0": 0.7}
 
     def test_top_level_takes_precedence_over_auth_metadata(self):
         manager = _build_manager()
@@ -663,9 +658,7 @@ class TestNormalizeDiscountFactor:
         ],
     )
     def test_normalize(self, value, expected):
-        assert (
-            VolcengineVideoBillingManager._normalize_discount_factor(value) == expected
-        )
+        assert VolcengineVideoBillingManager._normalize_discount_factor(value) == expected
 
 
 class TestMatchDiscountFactor:
@@ -774,25 +767,17 @@ class TestApplyDiscountFactor:
         """0.8 charges 80%; a (1 - factor) interpretation would wrongly give 2.0."""
         manager = _build_manager()
         task = SimpleNamespace(video_id="vid-1", model="m")
-        assert manager._apply_discount_factor(
-            spend=10.0, discount_factor=0.8, task=task
-        ) == pytest.approx(8.0)
+        assert manager._apply_discount_factor(spend=10.0, discount_factor=0.8, task=task) == pytest.approx(8.0)
 
     def test_no_factor_returns_original(self):
         manager = _build_manager()
         task = SimpleNamespace(video_id="vid-1", model="m")
-        assert (
-            manager._apply_discount_factor(spend=10.0, discount_factor=None, task=task)
-            == 10.0
-        )
+        assert manager._apply_discount_factor(spend=10.0, discount_factor=None, task=task) == 10.0
 
     def test_non_positive_spend_unchanged(self):
         manager = _build_manager()
         task = SimpleNamespace(video_id="vid-1", model="m")
-        assert (
-            manager._apply_discount_factor(spend=0.0, discount_factor=0.8, task=task)
-            == 0.0
-        )
+        assert manager._apply_discount_factor(spend=0.0, discount_factor=0.8, task=task) == 0.0
 
 
 class TestResolveDiscountFactor:
@@ -809,9 +794,7 @@ class TestResolveDiscountFactor:
     def test_resolves_from_json_string_metadata(self):
         manager = _build_manager()
         task = SimpleNamespace(
-            metadata=json.dumps(
-                {"custom_discount": {"volcengine/doubao-seedance-2.0": 0.7}}
-            ),
+            metadata=json.dumps({"custom_discount": {"volcengine/doubao-seedance-2.0": 0.7}}),
             model="volcengine/doubao-seedance-2.0",
             model_group="",
             provider_model="",
@@ -846,17 +829,11 @@ async def test_register_pending_video_task_snapshots_custom_discount(
         seconds="11",
         usage={"duration_seconds": 11.0},
     )
-    response._hidden_params = {
-        "request_content": [{"type": "text", "text": "a cat dancing"}]
-    }
+    response._hidden_params = {"request_content": [{"type": "text", "text": "a cat dancing"}]}
 
     await manager.handle_success_event(kwargs=kwargs, completion_response=response)
 
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert upsert_data["metadata"].data["custom_discount"] == {"seedance-2-video": 0.8}
 
 
@@ -915,9 +892,7 @@ async def test_finalize_completed_task_applies_custom_discount():
     assert upsert_call["final_spend"] == pytest.approx(expected_spend)
     assert upsert_call["custom_discount_factor"] == 0.8
 
-    update_data = (
-        manager.prisma_client.db.litellm_videotasktable.update.call_args.kwargs["data"]
-    )
+    update_data = manager.prisma_client.db.litellm_videotasktable.update.call_args.kwargs["data"]
     assert update_data["spend"] == pytest.approx(expected_spend)
 
 
@@ -1008,11 +983,7 @@ async def test_register_pending_task_seedance_15_with_audio(
 
     await manager.handle_success_event(kwargs=kwargs, completion_response=response)
 
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert upsert_data["pricing_model"] == "volcengine/seedance-1-5-pro-251215"
     assert upsert_data["price_per_million_tokens"] == 16.0
     assert upsert_data["pricing_currency"] == "CNY"
@@ -1036,11 +1007,7 @@ async def test_register_pending_task_seedance_15_without_audio(
 
     await manager.handle_success_event(kwargs=kwargs, completion_response=response)
 
-    upsert_data = (
-        manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"][
-            "create"
-        ]
-    )
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs["data"]["create"]
     assert upsert_data["price_per_million_tokens"] == 8.0
     assert upsert_data["metadata"].data["generate_audio"] is False
 

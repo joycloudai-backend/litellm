@@ -26,6 +26,10 @@ from litellm.llms.volcengine.videos.transformation import VolcEngineVideoConfig
 from litellm.litellm_core_utils.core_helpers import get_litellm_metadata_from_kwargs
 from litellm.litellm_core_utils.safe_json_loads import safe_json_loads
 from litellm.proxy._types import SpendLogsMetadata, SpendLogsPayload
+from litellm.proxy.db.exception_handler import (
+    PrismaDBExceptionHandler,
+    call_with_db_reconnect_retry,
+)
 from litellm.types.router import GenericLiteLLMParams
 from litellm.types.utils import LlmProviders, StandardLoggingPayload
 from litellm.types.videos.main import VideoObject
@@ -57,18 +61,14 @@ VOLCENGINE_VIDEO_CONTENT_CALL_TYPES = {
     "video_content",
 }
 VOLCENGINE_VIDEO_SUCCESS_CALL_TYPES = (
-    VOLCENGINE_VIDEO_CREATE_CALL_TYPES
-    | VOLCENGINE_VIDEO_STATUS_CALL_TYPES
-    | VOLCENGINE_VIDEO_CONTENT_CALL_TYPES
+    VOLCENGINE_VIDEO_CREATE_CALL_TYPES | VOLCENGINE_VIDEO_STATUS_CALL_TYPES | VOLCENGINE_VIDEO_CONTENT_CALL_TYPES
 )
 VOLCENGINE_VIDEO_ZERO_COST_CALL_TYPES = VOLCENGINE_VIDEO_SUCCESS_CALL_TYPES
 VOLCENGINE_VIDEO_PENDING_STATUSES = {"queued", "processing"}
 VOLCENGINE_VIDEO_NO_CHARGE_STATUSES = {"failed", "cancelled", "expired", "deleted"}
 VOLCENGINE_VIDEO_COMPLETED_STATUS = "completed"
 VOLCENGINE_VIDEO_DEFAULT_PRICING_MODEL = "volcengine/doubao-seedance-2.0"
-VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX = (
-    "volcengine_video_output_cost_per_million_tokens"
-)
+VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX = "volcengine_video_output_cost_per_million_tokens"
 VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS = 15
 VOLCENGINE_VIDEO_RETRY_INTERVAL_SECONDS = 60
 VOLCENGINE_VIDEO_CNY_PER_USD_ENV = "LITELLM_VOLCENGINE_VIDEO_CNY_PER_USD"
@@ -216,11 +216,7 @@ VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
 def _entry_has_video_pricing(entry: Optional[Dict[str, Any]]) -> bool:
     if not entry:
         return False
-    return any(
-        key.startswith(VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX)
-        and entry.get(key) is not None
-        for key in entry
-    )
+    return any(key.startswith(VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX) and entry.get(key) is not None for key in entry)
 
 
 def register_ark_video_pricing_models() -> None:
@@ -232,15 +228,11 @@ def register_ark_video_pricing_models() -> None:
     for model_name, model_info in VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS.items():
         existing_model_info = litellm.model_cost.get(model_name) or {}
         required_keys = ["provider_pricing_currency"] + [
-            key
-            for key in model_info
-            if key.startswith(VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX)
+            key for key in model_info if key.startswith(VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX)
         ]
         if not all(existing_model_info.get(key) is not None for key in required_keys):
             litellm.register_model(model_cost=VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS)
-            verbose_proxy_logger.info(
-                "Registered runtime pricing overrides for Volcengine video billing"
-            )
+            verbose_proxy_logger.info("Registered runtime pricing overrides for Volcengine video billing")
             return
 
 
@@ -257,9 +249,7 @@ def get_ark_video_pricing_entry(
     volcengine_video_output_cost_per_million_tokens_* keys, or None when no
     pricing config matches.
     """
-    pricing_model = model_info.get("provider_pricing_model") or model_info.get(
-        "base_model"
-    )
+    pricing_model = model_info.get("provider_pricing_model") or model_info.get("base_model")
     if not pricing_model:
         return None
     register_ark_video_pricing_models()
@@ -455,9 +445,9 @@ class VolcengineVideoBillingManager:
         if call_type not in VOLCENGINE_VIDEO_SUCCESS_CALL_TYPES:
             return False
 
-        custom_llm_provider = kwargs.get("custom_llm_provider") or (
-            kwargs.get("litellm_params", {}) or {}
-        ).get("custom_llm_provider")
+        custom_llm_provider = kwargs.get("custom_llm_provider") or (kwargs.get("litellm_params", {}) or {}).get(
+            "custom_llm_provider"
+        )
         return custom_llm_provider in ARK_VIDEO_PROVIDERS
 
     async def handle_success_event(
@@ -468,25 +458,17 @@ class VolcengineVideoBillingManager:
         if not self.should_handle_success_event(kwargs):
             return None
 
-        self._force_zero_cost_response(
-            kwargs=kwargs, completion_response=completion_response
-        )
+        self._force_zero_cost_response(kwargs=kwargs, completion_response=completion_response)
 
         call_type = kwargs.get("call_type")
         video_response = self._coerce_video_object(completion_response)
         try:
-            if (
-                call_type in VOLCENGINE_VIDEO_CREATE_CALL_TYPES
-                and video_response is not None
-            ):
+            if call_type in VOLCENGINE_VIDEO_CREATE_CALL_TYPES and video_response is not None:
                 await self._register_pending_video_task(
                     kwargs=kwargs,
                     completion_response=video_response,
                 )
-            elif (
-                call_type in VOLCENGINE_VIDEO_STATUS_CALL_TYPES
-                and video_response is not None
-            ):
+            elif call_type in VOLCENGINE_VIDEO_STATUS_CALL_TYPES and video_response is not None:
                 await self._reconcile_task_from_video_response(
                     video_id=video_response.id or "",
                     video_response=video_response,
@@ -509,38 +491,59 @@ class VolcengineVideoBillingManager:
             return
 
         now = _now_utc()
-        tasks = await video_task_table.find_many(
-            where={
-                "billing_state": "pending",
-                "OR": [
-                    {"next_check_at": None},
-                    {"next_check_at": {"lte": now}},
-                ],
-            },
-            take=MAX_OBJECTS_PER_POLL_CYCLE,
-            order={"created_at": "asc"},
-        )
-
-        for task in tasks:
-            try:
-                await self._poll_single_task(task=task)
-            except Exception as e:
-                verbose_proxy_logger.error(
-                    "Volcengine video billing poll failed for task=%s: %s\n%s",
-                    getattr(task, "video_id", None),
-                    str(e),
-                    traceback.format_exc(),
-                )
-                await video_task_table.update(
-                    where={"video_id": task.video_id},
-                    data={
-                        "last_error": str(e),
-                        "last_checked_at": now,
-                        "next_check_at": now
-                        + timedelta(seconds=VOLCENGINE_VIDEO_RETRY_INTERVAL_SECONDS),
-                        "check_attempts": {"increment": 1},
+        try:
+            tasks = await call_with_db_reconnect_retry(
+                self.prisma_client,
+                lambda: video_task_table.find_many(
+                    where={
+                        "billing_state": "pending",
+                        "OR": [
+                            {"next_check_at": None},
+                            {"next_check_at": {"lte": now}},
+                        ],
                     },
+                    take=MAX_OBJECTS_PER_POLL_CYCLE,
+                    order={"created_at": "asc"},
+                ),
+                reason="volcengine_video_poll_videotasktable_failure",
+            )
+
+            for task in tasks:
+                try:
+                    await self._poll_single_task(task=task)
+                except Exception as e:
+                    # A DB outage mid-cycle would make the per-task `update`
+                    # below fail too; let it bubble to the outer handler for a
+                    # single clean log instead of a doomed write + traceback.
+                    if PrismaDBExceptionHandler.is_database_service_unavailable_error(e):
+                        raise
+                    verbose_proxy_logger.error(
+                        "Volcengine video billing poll failed for task=%s: %s\n%s",
+                        getattr(task, "video_id", None),
+                        str(e),
+                        traceback.format_exc(),
+                    )
+                    await video_task_table.update(
+                        where={"video_id": task.video_id},
+                        data={
+                            "last_error": str(e),
+                            "last_checked_at": now,
+                            "next_check_at": now + timedelta(seconds=VOLCENGINE_VIDEO_RETRY_INTERVAL_SECONDS),
+                            "check_attempts": {"increment": 1},
+                        },
+                    )
+        except Exception as e:
+            # Best-effort background poller: when the DB is temporarily
+            # unreachable (and the single reconnect-retry above didn't recover),
+            # skip this cycle with one log line rather than dumping a full
+            # traceback to the scheduler every minute. Real bugs still propagate.
+            if PrismaDBExceptionHandler.is_database_service_unavailable_error(e):
+                verbose_proxy_logger.error(
+                    "Volcengine video billing poll skipped: database temporarily unavailable. error=%s",
+                    str(e),
                 )
+                return
+            raise
 
     def _force_zero_cost_response(
         self,
@@ -548,9 +551,7 @@ class VolcengineVideoBillingManager:
         completion_response: Optional[Any],
     ) -> None:
         kwargs["response_cost"] = 0.0
-        standard_logging_object = cast(
-            Optional[StandardLoggingPayload], kwargs.get("standard_logging_object")
-        )
+        standard_logging_object = cast(Optional[StandardLoggingPayload], kwargs.get("standard_logging_object"))
         if standard_logging_object is not None:
             standard_logging_object["response_cost"] = 0.0
 
@@ -619,21 +620,15 @@ class VolcengineVideoBillingManager:
             return
 
         metadata = get_litellm_metadata_from_kwargs(kwargs=kwargs)
-        standard_logging_object = cast(
-            Optional[StandardLoggingPayload], kwargs.get("standard_logging_object")
-        )
+        standard_logging_object = cast(Optional[StandardLoggingPayload], kwargs.get("standard_logging_object"))
 
         request_content = await self._get_request_content_for_task_registration(
             kwargs=kwargs,
             completion_response=completion_response,
         )
         has_input_video = _has_reference_video(request_content)
-        resolution = self._extract_request_resolution(
-            kwargs=kwargs, completion_response=completion_response
-        )
-        generate_audio = self._extract_request_generate_audio(
-            kwargs=kwargs, completion_response=completion_response
-        )
+        resolution = self._extract_request_resolution(kwargs=kwargs, completion_response=completion_response)
+        generate_audio = self._extract_request_generate_audio(kwargs=kwargs, completion_response=completion_response)
 
         model_info = cast(dict, metadata.get("model_info", {}) or {})
         pricing_model = self._resolve_pricing_model(model_info=model_info)
@@ -672,23 +667,15 @@ class VolcengineVideoBillingManager:
                     "video_id": video_id,
                     "provider_task_id": extract_original_video_id(video_id),
                     "api_key": spend_log_identity.get("api_key") or api_key_hash,
-                    "user": spend_log_identity.get("user")
-                    or metadata.get("user_api_key_user_id")
-                    or "",
-                    "team_id": spend_log_identity.get("team_id")
-                    or metadata.get("user_api_key_team_id")
-                    or None,
+                    "user": spend_log_identity.get("user") or metadata.get("user_api_key_user_id") or "",
+                    "team_id": spend_log_identity.get("team_id") or metadata.get("user_api_key_team_id") or None,
                     "organization_id": spend_log_identity.get("organization_id")
                     or metadata.get("user_api_key_org_id")
                     or None,
-                    "end_user": spend_log_identity.get("end_user")
-                    or metadata.get("user_api_key_end_user_id")
-                    or None,
+                    "end_user": spend_log_identity.get("end_user") or metadata.get("user_api_key_end_user_id") or None,
                     "custom_llm_provider": kwargs.get("custom_llm_provider") or "",
                     "model": kwargs.get("model") or "",
-                    "model_group": metadata.get("model_group")
-                    or kwargs.get("model")
-                    or "",
+                    "model_group": metadata.get("model_group") or kwargs.get("model") or "",
                     "model_id": model_info.get("id") or "",
                     "provider_model": completion_response.model or "",
                     "pricing_model": pricing_model,
@@ -703,30 +690,21 @@ class VolcengineVideoBillingManager:
                     or None,
                     "request_tags": request_tags_json,
                     "metadata": task_metadata_json,
-                    "next_check_at": now
-                    + timedelta(seconds=VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS),
+                    "next_check_at": now + timedelta(seconds=VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS),
                     "last_checked_at": now,
                     "check_attempts": 0,
                 },
                 "update": {
                     "api_key": spend_log_identity.get("api_key") or api_key_hash,
-                    "user": spend_log_identity.get("user")
-                    or metadata.get("user_api_key_user_id")
-                    or "",
-                    "team_id": spend_log_identity.get("team_id")
-                    or metadata.get("user_api_key_team_id")
-                    or None,
+                    "user": spend_log_identity.get("user") or metadata.get("user_api_key_user_id") or "",
+                    "team_id": spend_log_identity.get("team_id") or metadata.get("user_api_key_team_id") or None,
                     "organization_id": spend_log_identity.get("organization_id")
                     or metadata.get("user_api_key_org_id")
                     or None,
-                    "end_user": spend_log_identity.get("end_user")
-                    or metadata.get("user_api_key_end_user_id")
-                    or None,
+                    "end_user": spend_log_identity.get("end_user") or metadata.get("user_api_key_end_user_id") or None,
                     "custom_llm_provider": kwargs.get("custom_llm_provider") or "",
                     "model": kwargs.get("model") or "",
-                    "model_group": metadata.get("model_group")
-                    or kwargs.get("model")
-                    or "",
+                    "model_group": metadata.get("model_group") or kwargs.get("model") or "",
                     "model_id": model_info.get("id") or "",
                     "provider_model": completion_response.model or "",
                     "pricing_model": pricing_model,
@@ -741,8 +719,7 @@ class VolcengineVideoBillingManager:
                     or None,
                     "request_tags": request_tags_json,
                     "metadata": task_metadata_json,
-                    "next_check_at": now
-                    + timedelta(seconds=VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS),
+                    "next_check_at": now + timedelta(seconds=VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS),
                     "last_checked_at": now,
                     "last_error": None,
                 },
@@ -785,11 +762,7 @@ class VolcengineVideoBillingManager:
             headers=headers,
         )
         async_httpx_client = get_async_httpx_client(
-            llm_provider=(
-                LlmProviders.BYTEPLUS
-                if provider == "byteplus"
-                else LlmProviders.VOLCENGINE
-            )
+            llm_provider=(LlmProviders.BYTEPLUS if provider == "byteplus" else LlmProviders.VOLCENGINE)
         )
         response = await async_httpx_client.client.get(
             status_url,
@@ -842,9 +815,7 @@ class VolcengineVideoBillingManager:
         now = _now_utc()
 
         if terminal_completed:
-            await self._finalize_completed_task(
-                task=task, video_response=video_response
-            )
+            await self._finalize_completed_task(task=task, video_response=video_response)
             return
 
         if terminal_no_charge:
@@ -872,8 +843,7 @@ class VolcengineVideoBillingManager:
                 )
                 or None,
                 "last_checked_at": now,
-                "next_check_at": now
-                + timedelta(seconds=VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS),
+                "next_check_at": now + timedelta(seconds=VOLCENGINE_VIDEO_POLL_INTERVAL_SECONDS),
                 "check_attempts": {"increment": 1},
                 "last_error": None,
             },
@@ -895,8 +865,7 @@ class VolcengineVideoBillingManager:
             where={"video_id": task.video_id, "billing_state": "pending"},
             data={
                 "billing_state": "settling",
-                "provider_status": video_response.status
-                or VOLCENGINE_VIDEO_COMPLETED_STATUS,
+                "provider_status": video_response.status or VOLCENGINE_VIDEO_COMPLETED_STATUS,
                 "last_checked_at": _now_utc(),
                 "next_check_at": None,
                 "last_error": None,
@@ -921,9 +890,7 @@ class VolcengineVideoBillingManager:
             default=_safe_float(video_response.seconds),
         )
 
-        unit_price = self._resolve_final_unit_price(
-            task=task, video_response=video_response
-        )
+        unit_price = self._resolve_final_unit_price(task=task, video_response=video_response)
         provider_final_spend = unit_price * float(total_tokens) / 1_000_000.0
         final_spend_usd_before_discount = _convert_provider_spend_to_usd(
             amount=provider_final_spend,
@@ -938,16 +905,10 @@ class VolcengineVideoBillingManager:
         delta_spend = max(final_spend_usd - float(task.spend or 0.0), 0.0)
         provider_delta_spend = provider_final_spend
         delta_prompt_tokens = max(prompt_tokens - int(task.prompt_tokens or 0), 0)
-        delta_completion_tokens = max(
-            completion_tokens - int(task.completion_tokens or 0), 0
-        )
+        delta_completion_tokens = max(completion_tokens - int(task.completion_tokens or 0), 0)
 
         try:
-            if (
-                delta_spend > 0
-                or delta_prompt_tokens > 0
-                or delta_completion_tokens > 0
-            ):
+            if delta_spend > 0 or delta_prompt_tokens > 0 or delta_completion_tokens > 0:
                 await self._apply_async_billing_delta(
                     task=task,
                     delta_spend=delta_spend,
@@ -972,8 +933,7 @@ class VolcengineVideoBillingManager:
             await video_task_table.update(
                 where={"video_id": task.video_id},
                 data={
-                    "provider_status": video_response.status
-                    or VOLCENGINE_VIDEO_COMPLETED_STATUS,
+                    "provider_status": video_response.status or VOLCENGINE_VIDEO_COMPLETED_STATUS,
                     "billing_state": "billed",
                     "spend": final_spend_usd,
                     "total_tokens": total_tokens,
@@ -995,8 +955,7 @@ class VolcengineVideoBillingManager:
                     "billing_state": "pending",
                     "last_error": str(e),
                     "last_checked_at": now,
-                    "next_check_at": now
-                    + timedelta(seconds=VOLCENGINE_VIDEO_RETRY_INTERVAL_SECONDS),
+                    "next_check_at": now + timedelta(seconds=VOLCENGINE_VIDEO_RETRY_INTERVAL_SECONDS),
                     "check_attempts": {"increment": 1},
                 },
             )
@@ -1022,9 +981,7 @@ class VolcengineVideoBillingManager:
         effective_api_key = spend_log_identity.get("api_key") or task.api_key or ""
         effective_user = spend_log_identity.get("user") or task.user or None
         effective_team_id = spend_log_identity.get("team_id") or task.team_id or None
-        effective_org_id = (
-            spend_log_identity.get("organization_id") or task.organization_id or None
-        )
+        effective_org_id = spend_log_identity.get("organization_id") or task.organization_id or None
         effective_end_user = spend_log_identity.get("end_user") or task.end_user or None
         request_tags = _parse_request_tags(task.request_tags)
         delta_metadata_dict: Dict[str, Any] = {
@@ -1035,9 +992,7 @@ class VolcengineVideoBillingManager:
             "billing_spend_currency": "USD",
             "billing_spend_amount": delta_spend,
             "provider_to_usd_fx_rate": (
-                _get_cny_per_usd_rate()
-                if (task.pricing_currency or "").upper() == "CNY"
-                else None
+                _get_cny_per_usd_rate() if (task.pricing_currency or "").upper() == "CNY" else None
             ),
             "video_billing_task_id": task.video_id,
         }
@@ -1223,22 +1178,16 @@ class VolcengineVideoBillingManager:
     ) -> Optional[List[Dict[str, Any]]]:
         request_content = cast(
             Optional[List[Dict[str, Any]]],
-            (getattr(completion_response, "_hidden_params", {}) or {}).get(
-                "request_content"
-            ),
+            (getattr(completion_response, "_hidden_params", {}) or {}).get("request_content"),
         )
         if request_content is not None:
             return request_content
 
-        request_content = self._build_request_content_from_proxy_server_request(
-            kwargs.get("proxy_server_request")
-        )
+        request_content = self._build_request_content_from_proxy_server_request(kwargs.get("proxy_server_request"))
         if request_content is not None:
             return request_content
 
-        return await self._get_request_content_from_existing_spend_log(
-            video_id=completion_response.id or ""
-        )
+        return await self._get_request_content_from_existing_spend_log(video_id=completion_response.id or "")
 
     async def _get_request_content_from_existing_spend_log(
         self,
@@ -1256,9 +1205,7 @@ class VolcengineVideoBillingManager:
         if not video_id or self.prisma_client is None:
             return None
 
-        return await self.prisma_client.db.litellm_spendlogs.find_unique(
-            where={"request_id": video_id}
-        )
+        return await self.prisma_client.db.litellm_spendlogs.find_unique(where={"request_id": video_id})
 
     async def _get_spend_log_identity(self, video_id: str) -> Dict[str, Optional[str]]:
         existing_spend_log = await self._get_existing_spend_log(video_id=video_id)
@@ -1272,19 +1219,11 @@ class VolcengineVideoBillingManager:
             }
 
         return {
-            "api_key": _normalize_non_empty_str(
-                getattr(existing_spend_log, "api_key", None)
-            ),
+            "api_key": _normalize_non_empty_str(getattr(existing_spend_log, "api_key", None)),
             "user": _normalize_non_empty_str(getattr(existing_spend_log, "user", None)),
-            "team_id": _normalize_non_empty_str(
-                getattr(existing_spend_log, "team_id", None)
-            ),
-            "organization_id": _normalize_non_empty_str(
-                getattr(existing_spend_log, "organization_id", None)
-            ),
-            "end_user": _normalize_non_empty_str(
-                getattr(existing_spend_log, "end_user", None)
-            ),
+            "team_id": _normalize_non_empty_str(getattr(existing_spend_log, "team_id", None)),
+            "organization_id": _normalize_non_empty_str(getattr(existing_spend_log, "organization_id", None)),
+            "end_user": _normalize_non_empty_str(getattr(existing_spend_log, "end_user", None)),
         }
 
     def _build_request_content_from_proxy_server_request(
@@ -1315,9 +1254,7 @@ class VolcengineVideoBillingManager:
         standard_logging_object: Optional[StandardLoggingPayload],
     ) -> str:
         if standard_logging_object is not None:
-            api_key_hash = (standard_logging_object.get("metadata", {}) or {}).get(
-                "user_api_key_hash"
-            ) or ""
+            api_key_hash = (standard_logging_object.get("metadata", {}) or {}).get("user_api_key_hash") or ""
             if api_key_hash:
                 return str(api_key_hash)
         return _hash_token_if_needed(cast(Optional[str], metadata.get("user_api_key")))
@@ -1327,10 +1264,7 @@ class VolcengineVideoBillingManager:
         metadata: dict,
         standard_logging_object: Optional[StandardLoggingPayload],
     ) -> List[str]:
-        if (
-            standard_logging_object is not None
-            and standard_logging_object.get("request_tags") is not None
-        ):
+        if standard_logging_object is not None and standard_logging_object.get("request_tags") is not None:
             return _parse_request_tags(standard_logging_object.get("request_tags"))
         return _parse_request_tags(metadata.get("tags"))
 
@@ -1452,9 +1386,7 @@ class VolcengineVideoBillingManager:
             or VOLCENGINE_VIDEO_DEFAULT_PRICING_MODEL
         )
         normalized_model = _normalize_pricing_model(str(pricing_model))
-        if not (
-            model_info.get("provider_pricing_model") or model_info.get("base_model")
-        ):
+        if not (model_info.get("provider_pricing_model") or model_info.get("base_model")):
             verbose_proxy_logger.warning(
                 "Ark video billing falling back to default pricing model=%s. "
                 "Set model_info.provider_pricing_model or model_info.base_model for exact endpoint pricing.",
@@ -1512,9 +1444,7 @@ class VolcengineVideoBillingManager:
     ) -> Optional[str]:
         optional_params = kwargs.get("optional_params")
         if isinstance(optional_params, dict):
-            resolution = optional_params.get("resolution") or optional_params.get(
-                "size"
-            )
+            resolution = optional_params.get("resolution") or optional_params.get("size")
             if resolution:
                 return str(resolution)
 
@@ -1522,9 +1452,7 @@ class VolcengineVideoBillingManager:
         if isinstance(proxy_server_request, str):
             proxy_server_request = safe_json_loads(proxy_server_request, default={})
         if isinstance(proxy_server_request, dict):
-            resolution = proxy_server_request.get(
-                "resolution"
-            ) or proxy_server_request.get("size")
+            resolution = proxy_server_request.get("resolution") or proxy_server_request.get("size")
             if resolution:
                 return str(resolution)
 
@@ -1542,10 +1470,7 @@ class VolcengineVideoBillingManager:
         proxy_server_request = kwargs.get("proxy_server_request")
         if isinstance(proxy_server_request, str):
             proxy_server_request = safe_json_loads(proxy_server_request, default={})
-        if (
-            isinstance(proxy_server_request, dict)
-            and "generate_audio" in proxy_server_request
-        ):
+        if isinstance(proxy_server_request, dict) and "generate_audio" in proxy_server_request:
             return _coerce_bool(proxy_server_request.get("generate_audio"))
 
         hidden_params = getattr(completion_response, "_hidden_params", {}) or {}
@@ -1590,18 +1515,13 @@ class VolcengineVideoBillingManager:
             entry = litellm.model_cost.get(candidate)
             if entry is None:
                 continue
-            if any(
-                entry.get(key) is not None
-                for key in audio_base_keys + input_video_base_keys
-            ):
+            if any(entry.get(key) is not None for key in audio_base_keys + input_video_base_keys):
                 pricing_entry = entry
                 pricing_key = candidate
                 break
 
         if pricing_entry is None or pricing_key is None:
-            raise ValueError(
-                f"No Volcengine video pricing config found for model={pricing_model}"
-            )
+            raise ValueError(f"No Volcengine video pricing config found for model={pricing_model}")
 
         # Seedance 1.5 Pro prices by whether audio was generated; the 2.0 family
         # prices by whether the request referenced an input video. Use whichever
@@ -1627,9 +1547,7 @@ class VolcengineVideoBillingManager:
 
         unit_price = pricing_entry.get(price_key)
         if unit_price is None:
-            raise ValueError(
-                f"Missing pricing key={price_key} for Volcengine video model={pricing_key}"
-            )
+            raise ValueError(f"Missing pricing key={price_key} for Volcengine video model={pricing_key}")
         pricing_currency = pricing_entry.get("provider_pricing_currency", "CNY")
         return float(unit_price), str(pricing_currency)
 
@@ -1663,12 +1581,7 @@ class VolcengineVideoBillingManager:
         ):
             if not candidate:
                 continue
-            credentials = self.llm_router.get_deployment_credentials_with_provider(
-                candidate
-            )
-            if (
-                credentials
-                and credentials.get("custom_llm_provider") in ARK_VIDEO_PROVIDERS
-            ):
+            credentials = self.llm_router.get_deployment_credentials_with_provider(candidate)
+            if credentials and credentials.get("custom_llm_provider") in ARK_VIDEO_PROVIDERS:
                 return credentials
         return None
