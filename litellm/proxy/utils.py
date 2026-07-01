@@ -3058,6 +3058,16 @@ class PrismaClient:
             0.5,
             float(os.getenv("PRISMA_HEALTH_WATCHDOG_PROBE_TIMEOUT_SECONDS", "5.0")),
         )
+        # Require this many *consecutive* failed probes before recreating the
+        # engine. A single failed probe is usually a transient blip (brief
+        # network hiccup, or the probe timing out because the event loop was
+        # momentarily starved) and killing+respawning the engine over it causes
+        # a self-inflicted multi-second outage. Only a sustained failure across
+        # back-to-back probes warrants a reconnect.
+        self._db_health_watchdog_failure_threshold: int = max(
+            1, int(os.getenv("PRISMA_HEALTH_WATCHDOG_FAILURE_THRESHOLD", "2"))
+        )
+        self._db_health_watchdog_consecutive_probe_failures: int = 0
         self._db_watchdog_reconnect_timeout_seconds: float = max(
             1.0, float(os.getenv("PRISMA_WATCHDOG_RECONNECT_TIMEOUT_SECONDS", "30.0"))
         )
@@ -5056,12 +5066,26 @@ class PrismaClient:
                     self.db.query_raw("SELECT 1"),
                     timeout=self._db_health_watchdog_probe_timeout_seconds,
                 )
+                self._db_health_watchdog_consecutive_probe_failures = 0
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 if isinstance(
                     e, asyncio.TimeoutError
                 ) or PrismaDBExceptionHandler.is_database_connection_error(e):
+                    self._db_health_watchdog_consecutive_probe_failures += 1
+                    if (
+                        self._db_health_watchdog_consecutive_probe_failures
+                        < self._db_health_watchdog_failure_threshold
+                    ):
+                        verbose_proxy_logger.warning(
+                            "Prisma DB health probe failed (%d/%d consecutive); "
+                            "deferring reconnect in case this is a transient blip.",
+                            self._db_health_watchdog_consecutive_probe_failures,
+                            self._db_health_watchdog_failure_threshold,
+                        )
+                        continue
+                    self._db_health_watchdog_consecutive_probe_failures = 0
                     await self.attempt_db_reconnect(
                         reason="db_health_watchdog_connection_error",
                         timeout_seconds=self._db_watchdog_reconnect_timeout_seconds,
