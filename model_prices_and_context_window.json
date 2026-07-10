@@ -43646,7 +43646,9 @@
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 7.0,
         "volcengine_video_output_cost_per_million_tokens_with_input_video": 4.3,
         "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 7.7,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 4.7
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 4.7,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video_4k": 4.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_4k": 2.4
     },
     "byteplus/dreamina-seedance-2.0-fast": {
         "litellm_provider": "byteplus",

@@ -77,140 +77,6 @@ VOLCENGINE_VIDEO_DEFAULT_CNY_PER_USD = 7.2
 # BytePlus (international) video billing constants
 BYTEPLUS_VIDEO_DEFAULT_PRICING_MODEL = "byteplus/dreamina-seedance-2.0"
 ARK_VIDEO_PROVIDERS = {"volcengine", "byteplus"}
-VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = {
-    "volcengine/doubao-seedance-2.0": {
-        "litellm_provider": "volcengine",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "CNY",
-        "source": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
-        "supported_modalities": ["text", "image", "video", "audio"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 46.0,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 28.0,
-        "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 51.0,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 31.0,
-    },
-    "volcengine/doubao-seedance-2.0-fast": {
-        "litellm_provider": "volcengine",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "CNY",
-        "source": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
-        "supported_modalities": ["text", "image", "video", "audio"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 37.0,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 22.0,
-    },
-    "volcengine/doubao-seedance-2.0-mini": {
-        "litellm_provider": "volcengine",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "CNY",
-        "source": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
-        "supported_modalities": ["text", "image", "video", "audio"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 23.0,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 14.0,
-    },
-    "volcengine/seedance-1.5-pro": {
-        "litellm_provider": "volcengine",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "CNY",
-        "source": "https://www.volcengine.com/docs/82379/1366799",
-        "supported_modalities": ["text", "image", "video", "audio"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_audio": 8.0,
-        "volcengine_video_output_cost_per_million_tokens_with_audio": 16.0,
-    },
-    "byteplus/dreamina-seedance-2.0": {
-        "litellm_provider": "byteplus",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "USD",
-        "source": "https://www.byteplus.com/docs/82379/1544106",
-        "supported_modalities": ["text", "image", "video", "audio"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 7.0,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 4.3,
-        "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 7.7,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 4.7,
-    },
-    "byteplus/dreamina-seedance-2.0-fast": {
-        "litellm_provider": "byteplus",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "USD",
-        "source": "https://www.byteplus.com/docs/82379/1544106",
-        "supported_modalities": ["text", "image", "video", "audio"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.6,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.3,
-    },
-    "byteplus/dreamina-seedance-2.0-mini": {
-        "litellm_provider": "byteplus",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "USD",
-        "source": "https://www.byteplus.com/docs/82379/1544106",
-        "supported_modalities": ["text", "image", "video", "audio"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 3.5,
-        "volcengine_video_output_cost_per_million_tokens_with_input_video": 2.1,
-    },
-    "byteplus/seedance-1.5-pro": {
-        "litellm_provider": "byteplus",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "USD",
-        "source": "https://www.byteplus.com/docs/82379/1544106",
-        "supported_modalities": ["text", "image", "video", "audio"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_audio": 1.2,
-        "volcengine_video_output_cost_per_million_tokens_with_audio": 2.4,
-    },
-    "byteplus/seedance-1-0-pro": {
-        "litellm_provider": "byteplus",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "USD",
-        "source": "https://www.byteplus.com/docs/82379/1544106",
-        "supported_modalities": ["text", "image"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 2.5,
-    },
-    "byteplus/seedance-1-0-pro-fast": {
-        "litellm_provider": "byteplus",
-        "max_input_tokens": 1024,
-        "max_output_tokens": 1024,
-        "max_tokens": 1024,
-        "mode": "video_generation",
-        "provider_pricing_currency": "USD",
-        "source": "https://www.byteplus.com/docs/82379/1544106",
-        "supported_modalities": ["text", "image"],
-        "supported_output_modalities": ["video"],
-        "volcengine_video_output_cost_per_million_tokens_without_input_video": 1,
-    },
-}
 
 
 def _entry_has_video_pricing(entry: Optional[Dict[str, Any]]) -> bool:
@@ -219,9 +85,40 @@ def _entry_has_video_pricing(entry: Optional[Dict[str, Any]]) -> bool:
     return any(key.startswith(VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX) and entry.get(key) is not None for key in entry)
 
 
+def _load_ark_video_pricing_models() -> Dict[str, Dict[str, Any]]:
+    """
+    Load Volcengine/BytePlus video pricing from the fork's canonical
+    model_prices_and_context_window.json so prices are maintained in one place.
+
+    litellm.model_cost is fetched from the upstream BerriAI cost map at import
+    time and does not contain these fork-specific entries, so they must be read
+    from disk. In a dev checkout the repo-root JSON is used; in the Docker image
+    (Dockerfile.volcengine) that file is copied over the packaged
+    model_prices_and_context_window_backup.json, which is the only copy there.
+    """
+    repo_root_map = os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "model_prices_and_context_window.json"
+    )
+    if os.path.exists(repo_root_map):
+        with open(repo_root_map, encoding="utf-8") as f:
+            cost_map = json.load(f)
+    else:
+        from litellm.litellm_core_utils.get_model_cost_map import GetModelCostMap
+
+        cost_map = GetModelCostMap.load_local_model_cost_map()
+    return {
+        model_name: model_info
+        for model_name, model_info in cost_map.items()
+        if model_name.partition("/")[0] in ARK_VIDEO_PROVIDERS and _entry_has_video_pricing(model_info)
+    }
+
+
+VOLCENGINE_VIDEO_RUNTIME_PRICING_MODELS: Dict[str, Dict[str, Any]] = _load_ark_video_pricing_models()
+
+
 def register_ark_video_pricing_models() -> None:
     """
-    Register the in-code Volcengine/BytePlus video pricing entries into
+    Register the JSON-sourced Volcengine/BytePlus video pricing entries into
     litellm.model_cost so both async billing and /v1/model/info can resolve
     them. Idempotent: registers only when an entry is missing required keys.
     """
@@ -304,6 +201,14 @@ def _candidate_pricing_models(model_name: str) -> List[str]:
     return candidates
 
 
+def _min_dimension(resolution: str) -> Optional[int]:
+    try:
+        dimensions = tuple(int(part) for part in resolution.split("x"))
+    except ValueError:
+        return None
+    return min(dimensions) if dimensions else None
+
+
 def _is_1080p_resolution(resolution: Any) -> bool:
     if not resolution:
         return False
@@ -311,11 +216,18 @@ def _is_1080p_resolution(resolution: Any) -> bool:
     if normalized in {"1080p", "1080"}:
         return True
     if "x" in normalized:
-        try:
-            dimensions = [int(part) for part in normalized.split("x")]
-        except ValueError:
-            return False
-        return bool(dimensions) and min(dimensions) == 1080
+        return _min_dimension(normalized) == 1080
+    return False
+
+
+def _is_4k_resolution(resolution: Any) -> bool:
+    if not resolution:
+        return False
+    normalized = str(resolution).strip().lower()
+    if normalized in {"4k", "2160p", "2160"}:
+        return True
+    if "x" in normalized:
+        return _min_dimension(normalized) == 2160
     return False
 
 
@@ -1540,8 +1452,15 @@ class VolcengineVideoBillingManager:
             )
 
         price_key = base_price_key
-        if _is_1080p_resolution(resolution):
-            resolution_price_key = f"{base_price_key}_1080p"
+        resolution_suffix = (
+            "_4k"
+            if _is_4k_resolution(resolution)
+            else "_1080p"
+            if _is_1080p_resolution(resolution)
+            else None
+        )
+        if resolution_suffix is not None:
+            resolution_price_key = f"{base_price_key}{resolution_suffix}"
             if pricing_entry.get(resolution_price_key) is not None:
                 price_key = resolution_price_key
 

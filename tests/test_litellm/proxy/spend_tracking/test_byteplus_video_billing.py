@@ -14,6 +14,7 @@ from litellm.proxy.spend_tracking.volcengine_video_billing import (
     VolcengineVideoBillingManager,
     _candidate_pricing_models,
     _is_1080p_resolution,
+    _is_4k_resolution,
     _normalize_pricing_model,
     get_ark_video_pricing_entry,
     register_ark_video_pricing_models,
@@ -302,6 +303,26 @@ class TestResolutionDetection:
     def test_is_1080p_resolution(self, value, expected):
         assert _is_1080p_resolution(value) is expected
 
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            ("4k", True),
+            ("4K", True),
+            ("2160p", True),
+            ("2160", True),
+            ("3840x2160", True),
+            ("2160x3840", True),
+            ("1080p", False),
+            ("1920x1080", False),
+            ("720p", False),
+            (None, False),
+            ("", False),
+            ("garbage", False),
+        ],
+    )
+    def test_is_4k_resolution(self, value, expected):
+        assert _is_4k_resolution(value) is expected
+
 
 class TestResolutionAwarePricing:
     """
@@ -329,6 +350,10 @@ class TestResolutionAwarePricing:
             (False, "1920x1080", 7.7),
             (True, "1080p", 4.7),
             (True, "1080x1920", 4.7),
+            (False, "4k", 4.0),
+            (False, "3840x2160", 4.0),
+            (True, "4k", 2.4),
+            (True, "2160x3840", 2.4),
         ],
     )
     def test_seedance_2_0_pricing_by_resolution(
@@ -348,8 +373,10 @@ class TestResolutionAwarePricing:
         [
             (False, "720p", 5.6),
             (False, "1080p", 5.6),
+            (False, "4k", 5.6),
             (True, "720p", 3.3),
             (True, "1080p", 3.3),
+            (True, "4k", 3.3),
         ],
     )
     def test_seedance_2_0_fast_ignores_resolution(
