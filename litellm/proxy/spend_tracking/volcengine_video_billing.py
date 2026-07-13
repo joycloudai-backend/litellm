@@ -1210,6 +1210,7 @@ class VolcengineVideoBillingManager:
             model=task.model or "",
             model_group=task.model_group or "",
             provider_model=task.provider_model or "",
+            pricing_model=getattr(task, "pricing_model", None) or "",
         )
 
     def _apply_discount_factor(
@@ -1243,17 +1244,23 @@ class VolcengineVideoBillingManager:
         model: str,
         model_group: str,
         provider_model: str,
+        pricing_model: str = "",
     ) -> Optional[float]:
         """
         Match a discount factor for the task using the same precedence as the
         chat billing hook: exact request model, provider/model short name,
-        model_group, provider model, then a lenient substring fallback.
+        pricing model, model_group, provider model, a lenient substring match,
+        then the all-model fallback.
         """
         exact_candidates: List[str] = []
         if model:
             exact_candidates.append(model)
             if "/" in model:
                 exact_candidates.append(model.rsplit("/", 1)[-1])
+        if pricing_model:
+            exact_candidates.append(pricing_model)
+            if "/" in pricing_model:
+                exact_candidates.append(pricing_model.rsplit("/", 1)[-1])
         if model_group:
             exact_candidates.append(model_group)
         if provider_model:
@@ -1272,7 +1279,7 @@ class VolcengineVideoBillingManager:
                 factor = self._normalize_discount_factor(value)
                 if factor is not None:
                     return factor
-        return None
+        return self._normalize_discount_factor(custom_discount.get("__all__"))
 
     @staticmethod
     def _normalize_discount_factor(value: Any) -> Optional[float]:

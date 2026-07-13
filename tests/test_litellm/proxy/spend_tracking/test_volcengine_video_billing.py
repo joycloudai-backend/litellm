@@ -737,6 +737,36 @@ class TestMatchDiscountFactor:
             == 0.5
         )
 
+    def test_all_models_fallback(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"__all__": 0.9},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="",
+                provider_model="",
+            )
+            == 0.9
+        )
+
+    def test_pricing_model_match_precedes_all_models_fallback(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={
+                    "__all__": 0.9,
+                    "byteplus/dreamina-seedance-2-0-260128": 0.8,
+                    "byteplus/dreamina-seedance-2-0-fast-260128": 0.8,
+                    "byteplus/dreamina-seedance-2-0-mini-260615": 0.8,
+                },
+                model="seedance-2-video",
+                model_group="seedance-2-video",
+                provider_model="dreamina-seedance-2-0-260128",
+                pricing_model="byteplus/dreamina-seedance-2-0-260128",
+            )
+            == 0.8
+        )
+
     def test_no_match_returns_none(self):
         manager = _build_manager()
         assert (
