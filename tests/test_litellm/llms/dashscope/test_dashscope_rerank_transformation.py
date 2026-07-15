@@ -28,19 +28,33 @@ class TestDashScopeRerankURL:
         url = self.config.get_complete_url(api_base=None, model="qwen3-rerank")
         assert url == DEFAULT_RERANK_URL
 
-    def test_explicit_v1_base_appends_reranks(self):
+    def test_compatible_mode_base_rewritten_to_compatible_api(self):
+        # Chat/embed deployments share the account's /compatible-mode/v1 base,
+        # but DashScope serves rerank under /compatible-api/v1 on the same host.
         url = self.config.get_complete_url(
             api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
             model="qwen3-rerank",
         )
-        assert url == "https://dashscope.aliyuncs.com/compatible-mode/v1/reranks"
+        assert url == "https://dashscope.aliyuncs.com/compatible-api/v1/reranks"
 
-    def test_intl_v1_base_appends_reranks(self):
+    def test_intl_compatible_mode_base_rewritten_to_compatible_api(self):
         url = self.config.get_complete_url(
             api_base="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
             model="qwen3-rerank",
         )
-        assert url == "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/reranks"
+        assert url == "https://dashscope-intl.aliyuncs.com/compatible-api/v1/reranks"
+
+    def test_workspace_compatible_mode_base_rewritten_to_compatible_api(self):
+        # Regression: workspace-scoped Model Studio domains (Beijing intl) 404
+        # on /compatible-mode/v1/reranks; rerank lives at /compatible-api/v1/reranks.
+        url = self.config.get_complete_url(
+            api_base="https://ws-uecvjc16f627iw64.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            model="qwen3-rerank",
+        )
+        assert (
+            url
+            == "https://ws-uecvjc16f627iw64.cn-beijing.maas.aliyuncs.com/compatible-api/v1/reranks"
+        )
 
     def test_already_complete_url_passthrough(self):
         full = "https://dashscope.aliyuncs.com/compatible-api/v1/reranks"

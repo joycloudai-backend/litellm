@@ -69,14 +69,13 @@ class DashScopeRerankConfig(BaseRerankConfig):
         if api_base == DEFAULT_RERANK_URL:
             return DEFAULT_RERANK_URL
 
-        cleaned = api_base.rstrip("/")
+        # Deployments share the account-level `/compatible-mode/v1` base with
+        # chat/embed, but DashScope serves rerank under `/compatible-api/v1`
+        # on the same host — translate the path segment before appending.
+        cleaned = api_base.rstrip("/").replace("/compatible-mode/", "/compatible-api/")
         if cleaned.endswith("/reranks") or cleaned.endswith("/rerank"):
             return cleaned
 
-        if cleaned.endswith("/v1"):
-            return f"{cleaned}/reranks"
-
-        # Unknown base: append /reranks rather than silently ignoring the caller's api_base.
         return f"{cleaned}/reranks"
 
     def validate_environment(
