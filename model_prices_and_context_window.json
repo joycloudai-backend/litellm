@@ -11022,7 +11022,7 @@
         "supports_prompt_caching": true,
         "supports_reasoning": true,
         "supports_tool_choice": true,
-        "cache_read_input_token_cost": 1.14e-07,
+        "cache_read_input_token_cost": 5.7e-08,
         "cache_creation_input_token_cost": 7.13e-07
     },
     "dashscope/deepseek/deepseek-v4-flash": {
@@ -11132,7 +11132,7 @@
         "tiered_pricing": [
             {
                 "input_cost_per_token": 8.25e-07,
-                "cache_read_input_token_cost": 1.65e-07,
+                "cache_read_input_token_cost": 8.3e-08,
                 "cache_creation_input_token_cost": 1.031e-06,
                 "output_cost_per_token": 3.301e-06,
                 "range": [
@@ -11142,7 +11142,7 @@
             },
             {
                 "input_cost_per_token": 1.1e-06,
-                "cache_read_input_token_cost": 2.2e-07,
+                "cache_read_input_token_cost": 1.1e-07,
                 "cache_creation_input_token_cost": 1.375e-06,
                 "output_cost_per_token": 3.851e-06,
                 "range": [
@@ -11228,7 +11228,7 @@
         "supports_prompt_caching": true,
         "supports_reasoning": true,
         "supports_tool_choice": true,
-        "cache_read_input_token_cost": 1.15e-07,
+        "cache_read_input_token_cost": 5.7e-08,
         "cache_creation_input_token_cost": 7.18e-07
     },
     "dashscope/kimi/kimi-k2.6-cn": {
@@ -11242,7 +11242,7 @@
         "supports_prompt_caching": true,
         "supports_reasoning": true,
         "supports_tool_choice": true,
-        "cache_read_input_token_cost": 1.788e-07,
+        "cache_read_input_token_cost": 8.94e-08,
         "cache_creation_input_token_cost": 1.1174e-06
     },
     "dashscope/kimi/kimi-k2.7-code": {
@@ -11269,7 +11269,7 @@
         "supports_prompt_caching": true,
         "supports_reasoning": true,
         "supports_tool_choice": true,
-        "cache_read_input_token_cost": 1.788e-07,
+        "cache_read_input_token_cost": 8.94e-08,
         "cache_creation_input_token_cost": 1.1174e-06
     },
     "dashscope/qwen-coder": {
@@ -11607,7 +11607,7 @@
                 "input_cost_per_token": 4e-07,
                 "output_cost_per_token": 1.2e-06,
                 "output_cost_per_reasoning_token": 4e-06,
-                "cache_read_input_token_cost": 8e-08,
+                "cache_read_input_token_cost": 4e-08,
                 "cache_creation_input_token_cost": 5e-07,
                 "range": [
                     0.0,
@@ -11618,7 +11618,7 @@
                 "input_cost_per_token": 1.2e-06,
                 "output_cost_per_token": 3.6e-06,
                 "output_cost_per_reasoning_token": 1.2e-05,
-                "cache_read_input_token_cost": 2.4e-07,
+                "cache_read_input_token_cost": 1.2e-07,
                 "cache_creation_input_token_cost": 1.5e-06,
                 "range": [
                     256000.0,
@@ -11641,7 +11641,7 @@
                 "input_cost_per_token": 4e-07,
                 "output_cost_per_token": 1.2e-06,
                 "output_cost_per_reasoning_token": 4e-06,
-                "cache_read_input_token_cost": 8e-08,
+                "cache_read_input_token_cost": 4e-08,
                 "cache_creation_input_token_cost": 5e-07,
                 "range": [
                     0.0,
@@ -11652,7 +11652,7 @@
                 "input_cost_per_token": 1.2e-06,
                 "output_cost_per_token": 3.6e-06,
                 "output_cost_per_reasoning_token": 1.2e-05,
-                "cache_read_input_token_cost": 2.4e-07,
+                "cache_read_input_token_cost": 1.2e-07,
                 "cache_creation_input_token_cost": 1.5e-06,
                 "range": [
                     256000.0,
@@ -12418,7 +12418,7 @@
             {
                 "input_cost_per_token": 2e-07,
                 "output_cost_per_token": 1.6e-06,
-                "cache_read_input_token_cost": 4e-08,
+                "cache_read_input_token_cost": 2e-08,
                 "cache_creation_input_token_cost": 2.5e-07,
                 "range": [
                     0.0,
@@ -12428,7 +12428,7 @@
             {
                 "input_cost_per_token": 3e-07,
                 "output_cost_per_token": 2.4e-06,
-                "cache_read_input_token_cost": 6e-08,
+                "cache_read_input_token_cost": 3e-08,
                 "cache_creation_input_token_cost": 3.75e-07,
                 "range": [
                     32000.0,
@@ -12438,7 +12438,7 @@
             {
                 "input_cost_per_token": 6e-07,
                 "output_cost_per_token": 4.8e-06,
-                "cache_read_input_token_cost": 1.2e-07,
+                "cache_read_input_token_cost": 6e-08,
                 "cache_creation_input_token_cost": 7.5e-07,
                 "range": [
                     128000.0,
@@ -12622,7 +12622,7 @@
         "supports_prompt_caching": true,
         "supports_reasoning": true,
         "supports_tool_choice": true,
-        "cache_read_input_token_cost": 5e-07,
+        "cache_read_input_token_cost": 2.5e-07,
         "cache_creation_input_token_cost": 3.125e-06
     },
     "dashscope/qwen3.7-max-2026-05-17": {
@@ -12675,7 +12675,7 @@
         "supports_prompt_caching": true,
         "supports_reasoning": true,
         "supports_tool_choice": true,
-        "cache_read_input_token_cost": 5e-07,
+        "cache_read_input_token_cost": 2.5e-07,
         "cache_creation_input_token_cost": 3.125e-06
     },
     "dashscope/qwen3.7-max-2026-06-08-cn": {
@@ -12689,7 +12689,7 @@
         "supports_prompt_caching": true,
         "supports_reasoning": true,
         "supports_tool_choice": true,
-        "cache_read_input_token_cost": 3.3e-07,
+        "cache_read_input_token_cost": 1.65e-07,
         "cache_creation_input_token_cost": 2.063e-06
     },
     "dashscope/qwen3.7-max-cn": {
@@ -12703,7 +12703,7 @@
         "supports_prompt_caching": true,
         "supports_reasoning": true,
         "supports_tool_choice": true,
-        "cache_read_input_token_cost": 3.3e-07,
+        "cache_read_input_token_cost": 1.65e-07,
         "cache_creation_input_token_cost": 2.063e-06
     },
     "dashscope/qwen3.7-max-preview": {
@@ -12742,7 +12742,7 @@
         "tiered_pricing": [
             {
                 "input_cost_per_token": 4e-07,
-                "cache_read_input_token_cost": 8e-08,
+                "cache_read_input_token_cost": 4e-08,
                 "cache_creation_input_token_cost": 5e-07,
                 "output_cost_per_token": 1.6e-06,
                 "range": [
@@ -12752,7 +12752,7 @@
             },
             {
                 "input_cost_per_token": 1.2e-06,
-                "cache_read_input_token_cost": 2.4e-07,
+                "cache_read_input_token_cost": 1.2e-07,
                 "cache_creation_input_token_cost": 1.5e-06,
                 "output_cost_per_token": 4.8e-06,
                 "range": [
@@ -12774,7 +12774,7 @@
         "tiered_pricing": [
             {
                 "input_cost_per_token": 4e-07,
-                "cache_read_input_token_cost": 8e-08,
+                "cache_read_input_token_cost": 4e-08,
                 "cache_creation_input_token_cost": 5e-07,
                 "output_cost_per_token": 1.6e-06,
                 "range": [
@@ -12784,7 +12784,7 @@
             },
             {
                 "input_cost_per_token": 1.2e-06,
-                "cache_read_input_token_cost": 2.4e-07,
+                "cache_read_input_token_cost": 1.2e-07,
                 "cache_creation_input_token_cost": 1.5e-06,
                 "output_cost_per_token": 4.8e-06,
                 "range": [
@@ -12806,7 +12806,7 @@
         "tiered_pricing": [
             {
                 "input_cost_per_token": 2.76e-07,
-                "cache_read_input_token_cost": 5.6e-08,
+                "cache_read_input_token_cost": 2.8e-08,
                 "cache_creation_input_token_cost": 3.44e-07,
                 "output_cost_per_token": 1.101e-06,
                 "range": [
@@ -12816,7 +12816,7 @@
             },
             {
                 "input_cost_per_token": 8.26e-07,
-                "cache_read_input_token_cost": 1.66e-07,
+                "cache_read_input_token_cost": 8.3e-08,
                 "cache_creation_input_token_cost": 1.032e-06,
                 "output_cost_per_token": 3.301e-06,
                 "range": [
@@ -12838,7 +12838,7 @@
         "tiered_pricing": [
             {
                 "input_cost_per_token": 2.76e-07,
-                "cache_read_input_token_cost": 5.6e-08,
+                "cache_read_input_token_cost": 2.8e-08,
                 "cache_creation_input_token_cost": 3.44e-07,
                 "output_cost_per_token": 1.101e-06,
                 "range": [
@@ -12848,7 +12848,7 @@
             },
             {
                 "input_cost_per_token": 8.26e-07,
-                "cache_read_input_token_cost": 1.66e-07,
+                "cache_read_input_token_cost": 8.3e-08,
                 "cache_creation_input_token_cost": 1.032e-06,
                 "output_cost_per_token": 3.301e-06,
                 "range": [
