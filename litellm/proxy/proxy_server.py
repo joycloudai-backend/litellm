@@ -7466,16 +7466,28 @@ def select_data_generator(
 
 def get_litellm_model_info(model: dict = {}):
     model_info = model.get("model_info", {})
-    model_to_lookup = model.get("litellm_params", {}).get("model", None)
+    call_model = model.get("litellm_params", {}).get("model", None)
+    model_to_lookup = call_model
     try:
         if "azure" in model_to_lookup or model_info.get("base_model"):
             model_to_lookup = model_info.get("base_model", None)
         litellm_model_info = litellm.get_model_info(model_to_lookup)
         return litellm_model_info
     except Exception:
-        # this should not block returning on /model/info
-        # if litellm does not have info on the model it should return {}
-        return {}
+        # base_model price keys can be namespaced under a platform prefix that
+        # differs from the entry's litellm_provider (e.g. dashscope/kimi/* entries
+        # are registered with litellm_provider=openai because calls route through
+        # the openai/ compatible path). Retry with the actual call route provider,
+        # mirroring how spend tracking resolves the same entry.
+        try:
+            provider = (call_model or "").split("/", 1)[0]
+            return litellm.get_model_info(
+                model_to_lookup, custom_llm_provider=provider
+            )
+        except Exception:
+            # this should not block returning on /model/info
+            # if litellm does not have info on the model it should return {}
+            return {}
 
 
 def on_backoff(details):
