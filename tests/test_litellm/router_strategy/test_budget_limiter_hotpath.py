@@ -268,6 +268,152 @@ def test_register_deployment_budget_for_runtime_added_deployment(
     assert budget_limiter._get_budget_config_for_deployment(model_id) is None
 
 
+def _grouped_model_list(budget_group="acct-42", max_budget=10.0):
+    return [
+        {
+            "model_name": "kimi-k2.5",
+            "litellm_params": {
+                "model": "openai/kimi-k2.5",
+                "max_budget": max_budget,
+                "budget_duration": "30d",
+                "budget_group": budget_group,
+            },
+            "model_info": {"id": "deployment-kimi"},
+        },
+        {
+            "model_name": "qwen-plus",
+            "litellm_params": {
+                "model": "openai/qwen-plus",
+                "max_budget": max_budget,
+                "budget_duration": "30d",
+                "budget_group": budget_group,
+            },
+            "model_info": {"id": "deployment-qwen"},
+        },
+    ]
+
+
+def test_budget_group_deployments_share_spend_key(disable_budget_sync, monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(asyncio, "create_task", lambda coro: None)
+    budget_limiter = RouterBudgetLimiting(
+        dual_cache=DualCache(),
+        provider_budget_config=None,
+        model_list=_grouped_model_list(),
+    )
+
+    kimi_key = budget_limiter._deployment_spend_key("deployment-kimi", "30d")
+    qwen_key = budget_limiter._deployment_spend_key("deployment-qwen", "30d")
+    assert kimi_key == qwen_key == "deployment_spend:group:acct-42:30d"
+    assert (
+        budget_limiter._deployment_budget_start_time_key("deployment-kimi")
+        == budget_limiter._deployment_budget_start_time_key("deployment-qwen")
+        == "deployment_budget_start_time:group:acct-42"
+    )
+
+    ungrouped_key = budget_limiter._deployment_spend_key("other-deployment", "30d")
+    assert ungrouped_key == "deployment_spend:other-deployment:30d"
+
+    budget_limiter.unregister_deployment_budget(model_id="deployment-kimi")
+    assert (
+        budget_limiter._deployment_spend_key("deployment-kimi", "30d")
+        == "deployment_spend:deployment-kimi:30d"
+    )
+
+
+@pytest.mark.asyncio
+async def test_budget_group_spend_pooled_across_deployments(
+    disable_budget_sync, monkeypatch
+):
+    """
+    Spend on one deployment in a budget_group must count against every other
+    deployment in the same group: 6 + 6 > 10 blocks both kimi and qwen.
+    """
+    import asyncio
+
+    monkeypatch.setattr(asyncio, "create_task", lambda coro: None)
+    budget_limiter = RouterBudgetLimiting(
+        dual_cache=DualCache(),
+        provider_budget_config=None,
+        model_list=_grouped_model_list(max_budget=10.0),
+    )
+
+    async def _log_spend(model_id, cost):
+        await budget_limiter.async_log_success_event(
+            kwargs={
+                "standard_logging_object": {
+                    "response_cost": cost,
+                    "model_id": model_id,
+                },
+                "litellm_params": {"custom_llm_provider": "openai"},
+            },
+            response_obj=None,
+            start_time=None,
+            end_time=None,
+        )
+
+    healthy_deployments = _grouped_model_list(max_budget=10.0)
+
+    await _log_spend("deployment-kimi", 6.0)
+    filtered = await budget_limiter.async_filter_deployments(
+        model="kimi-k2.5",
+        healthy_deployments=healthy_deployments,
+        messages=[],
+        request_kwargs={},
+        parent_otel_span=None,
+    )
+    assert len(filtered) == 2
+
+    await _log_spend("deployment-qwen", 6.0)
+    with pytest.raises(ValueError, match="Exceeded budget for deployment"):
+        await budget_limiter.async_filter_deployments(
+            model="qwen-plus",
+            healthy_deployments=healthy_deployments,
+            messages=[],
+            request_kwargs={},
+            parent_otel_span=None,
+        )
+
+
+@pytest.mark.asyncio
+async def test_deployment_without_budget_group_keeps_isolated_spend(
+    disable_budget_sync, monkeypatch
+):
+    import asyncio
+
+    monkeypatch.setattr(asyncio, "create_task", lambda coro: None)
+    model_list = [
+        {
+            "model_name": "solo-model",
+            "litellm_params": {
+                "model": "openai/solo-model",
+                "max_budget": 10.0,
+                "budget_duration": "30d",
+            },
+            "model_info": {"id": "deployment-solo"},
+        }
+    ] + _grouped_model_list(max_budget=10.0)
+    budget_limiter = RouterBudgetLimiting(
+        dual_cache=DualCache(),
+        provider_budget_config=None,
+        model_list=model_list,
+    )
+
+    await budget_limiter.dual_cache.async_set_cache(
+        key="deployment_spend:group:acct-42:30d", value=100.0
+    )
+
+    filtered = await budget_limiter.async_filter_deployments(
+        model="solo-model",
+        healthy_deployments=model_list,
+        messages=[],
+        request_kwargs={},
+        parent_otel_span=None,
+    )
+    assert [d["model_info"]["id"] for d in filtered] == ["deployment-solo"]
+
+
 def test_router_add_deployment_registers_deployment_budget(
     disable_budget_sync, monkeypatch
 ):

@@ -105,6 +105,8 @@ class RouterBudgetLimiting(CustomLogger):
             provider_budget_config
         )
         self.deployment_budget_config: Optional[GenericBudgetConfigType] = None
+        # model_id -> budget_group: deployments sharing a group share one spend pool
+        self.deployment_budget_group: Dict[str, str] = {}
         self.tag_budget_config: Optional[GenericBudgetConfigType] = None
         self._init_provider_budgets()
         self._init_deployment_budgets(model_list=model_list)
@@ -252,7 +254,8 @@ class RouterBudgetLimiting(CustomLogger):
                 if model_id in deployment_configs:
                     config = deployment_configs[model_id]
                     current_spend = spend_map.get(
-                        f"deployment_spend:{model_id}:{config.budget_duration}", 0.0
+                        self._deployment_spend_key(model_id, config.budget_duration),
+                        0.0,
                     )
                     if config.max_budget and current_spend >= config.max_budget:
                         debug_msg = f"Exceeded budget for deployment model_name: {_model_name}, litellm_params.model: {_litellm_model_name}, model_id: {model_id}: {current_spend} >= {config.budget_duration}"
@@ -342,7 +345,9 @@ class RouterBudgetLimiting(CustomLogger):
                     if budget_config is not None:
                         deployment_configs[model_id] = budget_config
                         cache_keys.append(
-                            f"deployment_spend:{model_id}:{budget_config.budget_duration}"
+                            self._deployment_spend_key(
+                                model_id, budget_config.budget_duration
+                            )
                         )
 
         # Check tag budgets (outside loop — tags are per-request, not per-deployment)
@@ -463,9 +468,11 @@ class RouterBudgetLimiting(CustomLogger):
 
         deployment_budget_config = self._get_budget_config_for_deployment(model_id)
         if deployment_budget_config:
-            # increment spend for specific deployment id
-            deployment_spend_key = f"deployment_spend:{model_id}:{deployment_budget_config.budget_duration}"
-            deployment_start_time_key = f"deployment_budget_start_time:{model_id}"
+            # increment spend for specific deployment id (or its shared budget group)
+            deployment_spend_key = self._deployment_spend_key(
+                model_id, deployment_budget_config.budget_duration
+            )
+            deployment_start_time_key = self._deployment_budget_start_time_key(model_id)
             await self._increment_spend_for_key(
                 budget_config=deployment_budget_config,
                 spend_key=deployment_spend_key,
@@ -627,9 +634,11 @@ class RouterBudgetLimiting(CustomLogger):
                 for model_id, config in self.deployment_budget_config.items():
                     if config is None:
                         continue
-                    cache_keys.append(
-                        f"deployment_spend:{model_id}:{config.budget_duration}"
+                    _spend_key = self._deployment_spend_key(
+                        model_id, config.budget_duration
                     )
+                    if _spend_key not in cache_keys:
+                        cache_keys.append(_spend_key)
 
             if self.tag_budget_config is not None:
                 for tag, config in self.tag_budget_config.items():
@@ -665,6 +674,25 @@ class RouterBudgetLimiting(CustomLogger):
         if self.deployment_budget_config is None:
             return None
         return self.deployment_budget_config.get(model_id, None)
+
+    def _deployment_spend_key(
+        self, model_id: str, budget_duration: Optional[str]
+    ) -> str:
+        """
+        Spend cache key for a deployment. Deployments configured with the same
+        `litellm_params.budget_group` share one spend pool instead of counting
+        spend per deployment.
+        """
+        budget_group = self.deployment_budget_group.get(model_id)
+        if budget_group is not None:
+            return f"deployment_spend:group:{budget_group}:{budget_duration}"
+        return f"deployment_spend:{model_id}:{budget_duration}"
+
+    def _deployment_budget_start_time_key(self, model_id: str) -> str:
+        budget_group = self.deployment_budget_group.get(model_id)
+        if budget_group is not None:
+            return f"deployment_budget_start_time:group:{budget_group}"
+        return f"deployment_budget_start_time:{model_id}"
 
     def _get_budget_config_for_provider(
         self, provider: str
@@ -865,9 +893,10 @@ class RouterBudgetLimiting(CustomLogger):
             _model_id = _model_info.get("id")
             _max_budget = _litellm_params.get("max_budget")
             _budget_duration = _litellm_params.get("budget_duration")
+            _budget_group = _litellm_params.get("budget_group")
 
             verbose_router_logger.debug(
-                f"Init Deployment Budget: max_budget: {_max_budget}, budget_duration: {_budget_duration}, model_id: {_model_id}"
+                f"Init Deployment Budget: max_budget: {_max_budget}, budget_duration: {_budget_duration}, model_id: {_model_id}, budget_group: {_budget_group}"
             )
             if (
                 _max_budget is not None
@@ -881,6 +910,10 @@ class RouterBudgetLimiting(CustomLogger):
                 if self.deployment_budget_config is None:
                     self.deployment_budget_config = {}
                 self.deployment_budget_config[_model_id] = _budget_config
+                if _budget_group is not None:
+                    self.deployment_budget_group[_model_id] = str(_budget_group)
+                else:
+                    self.deployment_budget_group.pop(_model_id, None)
 
         verbose_router_logger.debug(
             f"Initialized Deployment Budget Config: {self.deployment_budget_config}"
@@ -896,6 +929,7 @@ class RouterBudgetLimiting(CustomLogger):
         self._init_deployment_budgets(model_list=[deployment])
 
     def unregister_deployment_budget(self, model_id: str) -> None:
+        self.deployment_budget_group.pop(model_id, None)
         if self.deployment_budget_config is None:
             return
         self.deployment_budget_config.pop(model_id, None)
