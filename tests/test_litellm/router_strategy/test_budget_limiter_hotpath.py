@@ -414,6 +414,51 @@ async def test_deployment_without_budget_group_keeps_isolated_spend(
     assert [d["model_info"]["id"] for d in filtered] == ["deployment-solo"]
 
 
+@pytest.mark.asyncio
+async def test_sync_resets_in_memory_spend_when_redis_key_deleted(
+    disable_budget_sync, monkeypatch
+):
+    """When the cron deletes Redis spend keys, the sync loop must reset
+    in-memory spend to 0 so deployments are no longer blocked."""
+    from unittest.mock import AsyncMock
+
+    from litellm.caching.in_memory_cache import InMemoryCache
+    from litellm.caching.redis_cache import RedisCache
+
+    mock_redis = AsyncMock(spec=RedisCache)
+    in_mem = InMemoryCache()
+    dual = DualCache(in_memory_cache=in_mem, redis_cache=mock_redis)
+
+    budget_limiter = RouterBudgetLimiting(
+        dual_cache=dual,
+        provider_budget_config={},
+    )
+
+    model_id = "dep-reset-test"
+    budget_limiter.deployment_budget_config = {
+        model_id: BudgetConfig(max_budget=5.0, budget_duration="30d"),
+    }
+
+    spend_key = f"deployment_spend:{model_id}:30d"
+    start_key = f"deployment_budget_start_time:{model_id}"
+
+    await in_mem.async_set_cache(key=spend_key, value=99.0)
+    await in_mem.async_set_cache(key=start_key, value=1.0)
+
+    mock_redis.async_batch_get_cache = AsyncMock(
+        return_value={spend_key: None, start_key: None}
+    )
+
+    await budget_limiter._sync_in_memory_spend_with_redis()
+
+    cached_spend = await in_mem.async_get_cache(key=spend_key)
+    assert cached_spend == 0.0, f"expected 0.0 after Redis key deletion, got {cached_spend}"
+    cached_start = await in_mem.async_get_cache(key=start_key)
+    assert cached_start is None, (
+        f"expected start_time removed from in-memory after Redis key deletion, got {cached_start}"
+    )
+
+
 def test_router_add_deployment_registers_deployment_budget(
     disable_budget_sync, monkeypatch
 ):

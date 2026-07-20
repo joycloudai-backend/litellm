@@ -20,7 +20,7 @@ anthropic:
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import litellm
 from litellm._logging import verbose_router_logger
@@ -630,6 +630,7 @@ class RouterBudgetLimiting(CustomLogger):
                         f"provider_spend:{provider}:{config.budget_duration}"
                     )
 
+            start_time_keys: Set[str] = set()
             if self.deployment_budget_config is not None:
                 for model_id, config in self.deployment_budget_config.items():
                     if config is None:
@@ -639,6 +640,10 @@ class RouterBudgetLimiting(CustomLogger):
                     )
                     if _spend_key not in cache_keys:
                         cache_keys.append(_spend_key)
+                    _start_key = self._deployment_budget_start_time_key(model_id)
+                    if _start_key not in start_time_keys:
+                        start_time_keys.add(_start_key)
+                        cache_keys.append(_start_key)
 
             if self.tag_budget_config is not None:
                 for tag, config in self.tag_budget_config.items():
@@ -660,6 +665,21 @@ class RouterBudgetLimiting(CustomLogger):
                         )
                         verbose_router_logger.debug(
                             f"Updated in-memory cache for {key}: {value}"
+                        )
+                    elif key in start_time_keys:
+                        # start_time deleted from Redis (e.g. external budget
+                        # reset) - drop the stale in-memory copy so the next
+                        # spend recreates the budget window
+                        self.dual_cache.in_memory_cache.delete_cache(key)
+                        verbose_router_logger.debug(
+                            f"Deleted in-memory cache for {key} (deleted from Redis)"
+                        )
+                    else:
+                        await self.dual_cache.in_memory_cache.async_set_cache(
+                            key=key, value=0.0
+                        )
+                        verbose_router_logger.debug(
+                            f"Reset in-memory cache for {key} (deleted from Redis)"
                         )
 
         except Exception as e:
