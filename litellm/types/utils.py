@@ -3241,6 +3241,7 @@ all_litellm_params = (
         "max_fallbacks",
         "max_budget",
         "budget_duration",
+        "budget_group",
         "use_in_pass_through",
         "merge_reasoning_content_in_choices",
         "litellm_credential_name",

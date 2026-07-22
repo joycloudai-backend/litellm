@@ -226,6 +226,8 @@ class GenericLiteLLMParams(CredentialLiteLLMParams, CustomPricingLiteLLMParams):
     # Deployment budgets
     max_budget: Optional[float] = None
     budget_duration: Optional[str] = None
+    # deployments sharing a budget_group share one spend pool (see RouterBudgetLimiting)
+    budget_group: Optional[str] = None
     use_in_pass_through: Optional[bool] = False
     use_litellm_proxy: Optional[bool] = False
     use_chat_completions_api: Optional[bool] = None
@@ -399,6 +401,7 @@ class LiteLLMParamsTypedDict(TypedDict, total=False):
     # deployment budgets
     max_budget: Optional[float]
     budget_duration: Optional[str]
+    budget_group: Optional[str]
 
 
 class DeploymentTypedDict(TypedDict, total=False):

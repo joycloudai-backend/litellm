@@ -28,6 +28,8 @@ COPY litellm/litellm_core_utils/get_llm_provider_logic.py /overlay/litellm/litel
 COPY litellm/utils.py                           /overlay/litellm/
 COPY litellm/__init__.py                        /overlay/litellm/
 COPY litellm/types/utils.py                     /overlay/litellm/types/
+# declares litellm_params.budget_group so it is not forwarded to providers
+COPY litellm/types/router.py                    /overlay/litellm/types/
 COPY litellm/constants.py                       /overlay/litellm/
 # account-level shared budget via litellm_params.budget_group
 COPY litellm/router_strategy/budget_limiter.py  /overlay/litellm/router_strategy/

@@ -4557,3 +4557,25 @@ def test_aws_bedrock_project_id_excluded_from_bedrock_optional_params():
     assert "aws_bedrock_project_id" not in result
     assert result["aws_region_name"] == "us-east-1"
 
+
+def test_budget_params_excluded_from_provider_params():
+    """Deployment budget params (max_budget / budget_duration / budget_group) are
+    router-level config; they must never be forwarded to the provider request body.
+    Regression: budget_group leaked into Bedrock requests and Anthropic rejected it
+    with 'budget_group: Extra inputs are not permitted'."""
+    from litellm.utils import get_non_default_completion_params
+
+    non_default = get_non_default_completion_params(
+        kwargs={
+            "max_budget": 100.0,
+            "budget_duration": "30d",
+            "budget_group": "123:456",
+            "top_k": 5,
+        }
+    )
+
+    assert "max_budget" not in non_default
+    assert "budget_duration" not in non_default
+    assert "budget_group" not in non_default
+    assert non_default["top_k"] == 5
+
