@@ -525,6 +525,54 @@ def test_build_final_spend_log_metadata_preserves_existing_dict_metadata():
     assert metadata["video_billing_task_id"] == "video_test_789"
 
 
+def test_build_final_spend_log_metadata_writes_cost_breakdown_without_discount():
+    """Without a discount the breakdown still carries original_cost == total_cost
+    so erp's COALESCE(cost_breakdown.original_cost, spend) reads the same value."""
+    manager = _build_manager()
+
+    metadata = manager._build_final_spend_log_metadata(
+        existing_metadata=None,
+        usage={"total_tokens": 238500},
+        pricing_currency="CNY",
+        provider_spend_amount=10.971,
+        final_spend=1.5237,
+        video_task_id="video_test_789",
+    )
+
+    cost_breakdown = metadata["cost_breakdown"]
+    assert cost_breakdown["input_cost"] == 0.0
+    assert cost_breakdown["tool_usage_cost"] == 0.0
+    assert cost_breakdown["output_cost"] == pytest.approx(1.5237)
+    assert cost_breakdown["total_cost"] == pytest.approx(1.5237)
+    assert cost_breakdown["original_cost"] == pytest.approx(1.5237)
+    assert "discount_percent" not in cost_breakdown
+    assert "discount_amount" not in cost_breakdown
+
+
+def test_build_final_spend_log_metadata_writes_cost_breakdown_with_discount():
+    """With a team discount the breakdown records the pre-discount catalog price
+    (original_cost) and discount summary, matching custom_billing.py's shape."""
+    manager = _build_manager()
+
+    metadata = manager._build_final_spend_log_metadata(
+        existing_metadata={"existing_key": "existing_value"},
+        usage={"total_tokens": 1_000_000},
+        pricing_currency="CNY",
+        provider_spend_amount=46.0,
+        final_spend=5.111111,
+        video_task_id="video_discount_breakdown",
+        custom_discount_factor=0.8,
+        final_spend_before_discount=6.388888,
+    )
+
+    cost_breakdown = metadata["cost_breakdown"]
+    assert cost_breakdown["total_cost"] == pytest.approx(5.111111)
+    assert cost_breakdown["output_cost"] == pytest.approx(5.111111)
+    assert cost_breakdown["original_cost"] == pytest.approx(6.388888)
+    assert cost_breakdown["discount_percent"] == 0.8
+    assert cost_breakdown["discount_amount"] == pytest.approx(6.388888 - 5.111111)
+
+
 @pytest.mark.skip(reason="Requires full proxy_server dependencies - tested via integration tests")
 @pytest.mark.asyncio
 async def test_apply_async_billing_delta_prefers_existing_spend_log_identity():
@@ -921,6 +969,9 @@ async def test_finalize_completed_task_applies_custom_discount():
     upsert_call = manager._upsert_final_spend_log.call_args.kwargs
     assert upsert_call["final_spend"] == pytest.approx(expected_spend)
     assert upsert_call["custom_discount_factor"] == 0.8
+    assert upsert_call["final_spend_before_discount"] == pytest.approx(
+        provider_spend / VOLCENGINE_VIDEO_DEFAULT_CNY_PER_USD
+    )
 
     update_data = manager.prisma_client.db.litellm_videotasktable.update.call_args.kwargs["data"]
     assert update_data["spend"] == pytest.approx(expected_spend)

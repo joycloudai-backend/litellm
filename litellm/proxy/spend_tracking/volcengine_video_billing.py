@@ -834,6 +834,7 @@ class VolcengineVideoBillingManager:
                 await self._upsert_final_spend_log(
                     task=task,
                     final_spend=final_spend_usd,
+                    final_spend_before_discount=final_spend_usd_before_discount,
                     provider_spend_amount=provider_final_spend,
                     total_tokens=total_tokens,
                     prompt_tokens=prompt_tokens,
@@ -983,6 +984,7 @@ class VolcengineVideoBillingManager:
         completion_tokens: int,
         usage: Dict[str, Any],
         custom_discount_factor: Optional[float] = None,
+        final_spend_before_discount: Optional[float] = None,
     ) -> None:
         existing_spend_log = await self.prisma_client.db.litellm_spendlogs.find_unique(
             where={"request_id": task.video_id}
@@ -995,6 +997,7 @@ class VolcengineVideoBillingManager:
             final_spend=final_spend,
             video_task_id=task.video_id,
             custom_discount_factor=custom_discount_factor,
+            final_spend_before_discount=final_spend_before_discount,
         )
         metadata_json = _to_prisma_json(metadata)
         request_tags_json = _to_prisma_json(_parse_request_tags(task.request_tags))
@@ -1064,6 +1067,7 @@ class VolcengineVideoBillingManager:
         final_spend: float,
         video_task_id: str,
         custom_discount_factor: Optional[float] = None,
+        final_spend_before_discount: Optional[float] = None,
     ) -> Dict[str, Any]:
         if isinstance(existing_metadata, dict):
             metadata_dict = dict(existing_metadata)
@@ -1081,7 +1085,38 @@ class VolcengineVideoBillingManager:
         metadata_dict["video_billing_task_id"] = video_task_id
         if custom_discount_factor is not None:
             metadata_dict["custom_discount_factor"] = custom_discount_factor
+        metadata_dict["cost_breakdown"] = self._build_cost_breakdown(
+            final_spend=final_spend,
+            final_spend_before_discount=final_spend_before_discount,
+            custom_discount_factor=custom_discount_factor,
+        )
         return metadata_dict
+
+    @staticmethod
+    def _build_cost_breakdown(
+        final_spend: float,
+        final_spend_before_discount: Optional[float],
+        custom_discount_factor: Optional[float],
+    ) -> Dict[str, Any]:
+        """
+        Mirror the shape custom_billing.py writes for chat requests so downstream
+        billing (erp) can read the pre-discount catalog price uniformly via
+        metadata.cost_breakdown.original_cost. This async path bypasses the
+        standard logging pipeline, so the breakdown must be written here.
+        Video generation is output-only, hence input/tool costs are zero.
+        """
+        original_cost = final_spend_before_discount if final_spend_before_discount is not None else final_spend
+        cost_breakdown: Dict[str, Any] = {
+            "input_cost": 0.0,
+            "output_cost": final_spend,
+            "tool_usage_cost": 0.0,
+            "total_cost": final_spend,
+            "original_cost": original_cost,
+        }
+        if custom_discount_factor is not None:
+            cost_breakdown["discount_percent"] = custom_discount_factor
+            cost_breakdown["discount_amount"] = max(original_cost - final_spend, 0.0)
+        return cost_breakdown
 
     async def _get_request_content_for_task_registration(
         self,
