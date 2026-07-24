@@ -194,6 +194,10 @@ def infer_mode(section_path: str, model_id: str) -> str:
         return "rerank"
     if "embedding" in path or "embedding" in model_id:
         return "embedding"
+    # "image" as a whole hyphen segment (qwen-image, qwen-image-edit-max) so
+    # vision-chat models like qwen-vl-* stay "chat"
+    if "image generation" in path or "image" in model_id.split("-"):
+        return "image_generation"
     return "chat"
 
 
@@ -505,6 +509,9 @@ def build_entry(model: ModelPrice, provider: str) -> dict:
         entry["supports_reasoning"] = True
         entry["supports_tool_choice"] = True
 
+    if mode == "image_generation":
+        entry["supported_endpoints"] = ["/v1/images/generations"]
+
     if mode in ("embedding", "rerank"):
         entry["input_cost_per_token"] = per_token(tiers[0].input_per_m)
         entry["output_cost_per_token"] = 0.0
@@ -567,48 +574,67 @@ def merge_entry(existing: dict, new: dict) -> dict:
     return merged
 
 
-def apply_updates(
-    data: dict,
-    updates: dict[str, dict],
-) -> tuple[list[str], list[str]]:
+# Top-level entries are `    "key": {` at indent 4; nested objects close at
+# indent >= 8, so "\n    }" uniquely terminates a top-level block.
+TOP_BLOCK_RE = re.compile(r'^    "([^"]+)": \{', re.M)
+
+
+def find_top_blocks(text: str) -> dict[str, tuple[int, int]]:
+    """Map each top-level key to the (start, end) span of its first block."""
+    blocks: dict[str, tuple[int, int]] = {}
+    for m in TOP_BLOCK_RE.finditer(text):
+        end = text.index("\n    }", m.end()) + len("\n    }")
+        blocks.setdefault(m.group(1), (m.start(), end))
+    return blocks
+
+
+def render_block(key: str, entry: dict) -> str:
+    body = json.dumps(entry, indent=4, ensure_ascii=False).replace("\n", "\n    ")
+    return f'    "{key}": {body}'
+
+
+def apply_updates(text: str, updates: dict[str, dict]) -> tuple[str, list[str], list[str]]:
+    """Splice updates into the raw JSON text, touching only the affected blocks.
+
+    A whole-file json.loads -> json.dumps round trip is unsafe here: the upstream
+    file contains duplicate top-level keys (dict load silently collapses them)
+    and any re-serialization rewrites unrelated providers' entries.
+    """
+    blocks = find_top_blocks(text)
+    dash_sorted = sorted(k for k in blocks if k.startswith("dashscope/"))
     added, updated = [], []
+    edits: list[tuple[int, int, str]] = []
+    inserts: dict[int, list[str]] = defaultdict(list)
+
     for key, entry in sorted(updates.items()):
-        if key in data:
-            data[key] = merge_entry(data[key], entry)
+        if key in blocks:
+            start, end = blocks[key]
+            prefix = f'    "{key}": '
+            existing = json.loads(text[start + len(prefix) : end])
+            edits.append((start, end, render_block(key, merge_entry(existing, entry))))
             updated.append(key)
+            continue
+        if not dash_sorted:
+            raise RuntimeError("no existing dashscope/* block to anchor insertion")
+        successor = next((k for k in dash_sorted if k > key), None)
+        if successor is not None:
+            pos = blocks[successor][0]
         else:
-            data[key] = entry
-            added.append(key)
-    return added, updated
+            last_end = max(blocks[k][1] for k in dash_sorted)
+            # ponytail: assumes the last dashscope block is not the file's final
+            # entry (always true here); otherwise comma handling would differ
+            if text[last_end] != ",":
+                raise RuntimeError("last dashscope block is the final entry; cannot append")
+            pos = last_end + 2
+        inserts[pos].append(render_block(key, entry))
+        added.append(key)
 
-
-def reorder_dashscope_keys(data: dict) -> dict:
-    """Keep non-dashscope order; sort dashscope/* cluster in place."""
-    keys = list(data.keys())
-    dash = [k for k in keys if k.startswith("dashscope/")]
-    if not dash:
-        return data
-    first = keys.index(dash[0])
-    last = keys.index(dash[-1])
-    ordered = {}
-    for k in keys[:first]:
-        ordered[k] = data[k]
-    for k in sorted(set(dash) | {x for x in data if x.startswith("dashscope/")}):
-        if k in data:
-            ordered[k] = data[k]
-    for k in keys[last + 1 :]:
-        if not k.startswith("dashscope/"):
-            ordered[k] = data[k]
-    # any dashscope key that was outside the original cluster
-    for k in data:
-        if k.startswith("dashscope/") and k not in ordered:
-            # insert by sort into dashscope block — already handled via set union above
-            pass
-    return ordered
-
-
-def write_json(path: Path, data: dict) -> None:
-    path.write_text(json.dumps(data, indent=4, ensure_ascii=False) + "\n", encoding="utf-8")
+    for pos, rendered in inserts.items():
+        edits.append((pos, pos, "".join(b + ",\n" for b in rendered)))
+    for start, end, replacement in sorted(edits, reverse=True):
+        text = text[:start] + replacement + text[end:]
+    json.loads(text)  # sanity: result must still be valid JSON
+    return text, added, updated
 
 
 def console_url(region: str) -> str:
@@ -873,11 +899,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"dry-run: would touch {len(updates)} keys", file=sys.stderr)
         return 0
 
-    data = json.loads(args.json_path.read_text(encoding="utf-8"))
-    added, updated = apply_updates(data, updates)
-    if added:
-        data = reorder_dashscope_keys(data)
-    args.json_path.write_text(json.dumps(data, indent=4, ensure_ascii=False) + "\n", encoding="utf-8")
+    raw = args.json_path.read_text(encoding="utf-8")
+    new_text, added, updated = apply_updates(raw, updates)
+    args.json_path.write_text(new_text, encoding="utf-8")
     print(f"wrote {args.json_path}: added={len(added)} updated={len(updated)}", file=sys.stderr)
     for k in added:
         print(f"  + {k}")
@@ -895,8 +919,38 @@ def _self_check() -> None:
     assert parse_token_range("256K<Token≤1M") == [256000.0, 1_000_000.0]
     assert price_key("qwen3.7-plus", "-cn") == ("dashscope/qwen3.7-plus-cn", "dashscope")
     assert price_key("kimi-k2.5", "-cn") == ("dashscope/kimi/kimi-k2.5-cn", "openai")
+    assert infer_mode("Text generation", "qwen3.7-plus") == "chat"
+    assert infer_mode("Image generation", "qwen-image-max") == "image_generation"
+    assert infer_mode("More models", "qwen-image-edit-max-2026-01-16") == "image_generation"
+    assert infer_mode("Visual understanding", "qwen-vl-plus") == "chat"
+    assert infer_mode("Text embedding", "text-embedding-v4") == "embedding"
     assert "ap-southeast-1" in console_url("singapore")
     assert "url=prices" in console_url("singapore")
+    # regression: duplicate top-level keys and unrelated providers must survive
+    # the write untouched (byte-for-byte outside the dashscope blocks)
+    raw = (
+        "{\n"
+        '    "bedrock/dup": {\n        "a": 1\n    },\n'
+        '    "dashscope/qwen-b": {\n        "input_cost_per_token": 1e-06,\n        "max_tokens": 8\n    },\n'
+        '    "bedrock/dup": {\n        "a": 2\n    },\n'
+        '    "zz/tail": {\n        "a": 3\n    }\n'
+        "}\n"
+    )
+    out, added2, updated2 = apply_updates(
+        raw,
+        {
+            "dashscope/qwen-a": {"litellm_provider": "dashscope", "input_cost_per_token": 2e-06},
+            "dashscope/qwen-b": {"input_cost_per_token": 3e-06},
+            "dashscope/qwen-z": {"litellm_provider": "dashscope"},
+        },
+    )
+    assert added2 == ["dashscope/qwen-a", "dashscope/qwen-z"], added2
+    assert updated2 == ["dashscope/qwen-b"], updated2
+    assert out.count('"bedrock/dup"') == 2, "duplicate keys were collapsed"
+    assert '"a": 1' in out and '"a": 2' in out and '"a": 3' in out
+    assert '"max_tokens": 8' in out, "merge_entry must keep non-price fields"
+    assert '"input_cost_per_token": 3e-06' in out
+    assert out.index('"dashscope/qwen-a"') < out.index('"dashscope/qwen-b"') < out.index('"dashscope/qwen-z"')
     print("self-check ok")
 
 

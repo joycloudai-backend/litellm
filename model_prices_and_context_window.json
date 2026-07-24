@@ -11400,6 +11400,72 @@
             }
         ]
     },
+    "dashscope/qwen-image-2.0-pro-2026-03-03": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_token": 7.5e-08,
+        "output_cost_per_token": 7.5e-08
+    },
+    "dashscope/qwen-image-2.0-pro-2026-04-22": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_token": 7.5e-08,
+        "output_cost_per_token": 7.5e-08
+    },
+    "dashscope/qwen-image-2.0-pro-2026-06-22": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_token": 7.5e-08,
+        "output_cost_per_token": 7.5e-08
+    },
+    "dashscope/qwen-image-edit-max": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_token": 7.5e-08,
+        "output_cost_per_token": 7.5e-08
+    },
+    "dashscope/qwen-image-edit-max-2026-01-16": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_token": 7.5e-08,
+        "output_cost_per_token": 7.5e-08
+    },
+    "dashscope/qwen-image-max": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_token": 7.5e-08,
+        "output_cost_per_token": 7.5e-08
+    },
     "dashscope/qwen-max": {
         "input_cost_per_token": 1.6e-06,
         "litellm_provider": "dashscope",
@@ -12904,18 +12970,35 @@
     "dashscope/qwen-image-2.0": {
         "litellm_provider": "dashscope",
         "mode": "image_generation",
-        "source": "https://www.alibabacloud.com/help/en/model-studio/models",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
         "supported_endpoints": [
             "/v1/images/generations"
-        ]
+        ],
+        "input_cost_per_token": 3.5e-08,
+        "output_cost_per_token": 3.5e-08,
+        "provider_pricing_currency": "USD"
+    },
+    "dashscope/qwen-image-2.0-2026-03-03": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_token": 3.5e-08,
+        "output_cost_per_token": 3.5e-08
     },
     "dashscope/qwen-image-2.0-pro": {
         "litellm_provider": "dashscope",
         "mode": "image_generation",
-        "source": "https://www.alibabacloud.com/help/en/model-studio/models",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
         "supported_endpoints": [
             "/v1/images/generations"
-        ]
+        ],
+        "input_cost_per_token": 7.5e-08,
+        "output_cost_per_token": 7.5e-08,
+        "provider_pricing_currency": "USD"
     },
     "dashscope/text-embedding-v3": {
         "input_cost_per_token": 7e-08,
