@@ -11408,7 +11408,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 7.5e-08,
         "output_cost_per_token": 7.5e-08
     },
     "dashscope/qwen-image-2.0-pro-2026-04-22": {
@@ -11419,7 +11418,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 7.5e-08,
         "output_cost_per_token": 7.5e-08
     },
     "dashscope/qwen-image-2.0-pro-2026-06-22": {
@@ -11430,7 +11428,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 7.5e-08,
         "output_cost_per_token": 7.5e-08
     },
     "dashscope/qwen-image-edit-max": {
@@ -11441,7 +11438,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 7.5e-08,
         "output_cost_per_token": 7.5e-08
     },
     "dashscope/qwen-image-edit-max-2026-01-16": {
@@ -11452,7 +11448,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 7.5e-08,
         "output_cost_per_token": 7.5e-08
     },
     "dashscope/qwen-image-max": {
@@ -11463,7 +11458,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 7.5e-08,
         "output_cost_per_token": 7.5e-08
     },
     "dashscope/qwen-max": {
@@ -12974,7 +12968,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 3.5e-08,
         "output_cost_per_token": 3.5e-08,
         "provider_pricing_currency": "USD"
     },
@@ -12986,7 +12979,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 3.5e-08,
         "output_cost_per_token": 3.5e-08
     },
     "dashscope/qwen-image-2.0-pro": {
@@ -12996,7 +12988,6 @@
         "supported_endpoints": [
             "/v1/images/generations"
         ],
-        "input_cost_per_token": 7.5e-08,
         "output_cost_per_token": 7.5e-08,
         "provider_pricing_currency": "USD"
     },

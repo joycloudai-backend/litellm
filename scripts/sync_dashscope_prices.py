@@ -510,7 +510,11 @@ def build_entry(model: ModelPrice, provider: str) -> dict:
         entry["supports_tool_choice"] = True
 
     if mode == "image_generation":
+        # DashScope image models have a single flat price (billed on output
+        # image tokens only), so no input_cost_per_token
         entry["supported_endpoints"] = ["/v1/images/generations"]
+        entry["output_cost_per_token"] = per_token(tiers[0].output_per_m)
+        return entry
 
     if mode in ("embedding", "rerank"):
         entry["input_cost_per_token"] = per_token(tiers[0].input_per_m)
@@ -567,6 +571,10 @@ def merge_entry(existing: dict, new: dict) -> dict:
     for k in PRICE_FIELDS:
         if k in new:
             merged[k] = new[k]
+    # image models bill a single flat price; drop a stale input cost left over
+    # from when they were mis-synced as chat models
+    if new.get("mode") == "image_generation" and "input_cost_per_token" not in new:
+        merged.pop("input_cost_per_token", None)
     # ensure capability flags exist for new chat models without wiping customs
     for k in ("supports_function_calling", "supports_reasoning", "supports_tool_choice"):
         if k in new and k not in merged:
@@ -924,6 +932,22 @@ def _self_check() -> None:
     assert infer_mode("More models", "qwen-image-edit-max-2026-01-16") == "image_generation"
     assert infer_mode("Visual understanding", "qwen-vl-plus") == "chat"
     assert infer_mode("Text embedding", "text-embedding-v4") == "embedding"
+    img = build_entry(
+        ModelPrice(
+            model_id="qwen-image-max",
+            region_heading="Singapore",
+            deployment_scope="International",
+            section_path="Image generation",
+            tiers=[Tier(range=None, input_per_m=0.075, output_per_m=0.075)],
+        ),
+        "dashscope",
+    )
+    assert img["mode"] == "image_generation"
+    assert "input_cost_per_token" not in img, "image models bill a single flat price"
+    assert img["output_cost_per_token"] == 7.5e-08
+    assert img["supported_endpoints"] == ["/v1/images/generations"]
+    stale = {"mode": "image_generation", "input_cost_per_token": 1e-08, "output_cost_per_token": 1e-08}
+    assert "input_cost_per_token" not in merge_entry(stale, img), "merge must drop stale input cost"
     assert "ap-southeast-1" in console_url("singapore")
     assert "url=prices" in console_url("singapore")
     # regression: duplicate top-level keys and unrelated providers must survive
