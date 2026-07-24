@@ -953,6 +953,66 @@ def test_default_image_cost_calculator(monkeypatch):
     assert cost == 10485760
 
 
+def test_default_image_cost_calculator_output_cost_per_image(monkeypatch):
+    """
+    Regression: DashScope image models bill per generated image via
+    output_cost_per_image. Before the fix the calculator only understood
+    input_cost_per_image / input_cost_per_pixel and raised, so proxy spend
+    tracking logged 0 for every dashscope image generation.
+    """
+    from litellm.cost_calculator import default_image_cost_calculator
+
+    monkeypatch.setattr(
+        litellm,
+        "model_cost",
+        {
+            "dashscope/qwen-image-2.0": {
+                "litellm_provider": "dashscope",
+                "mode": "image_generation",
+                "output_cost_per_image": 0.035,
+            }
+        },
+    )
+
+    cost = default_image_cost_calculator(
+        model="dashscope/qwen-image-2.0",
+        custom_llm_provider="dashscope",
+        n=2,
+        size="1024-x-1024",
+    )
+    assert cost == pytest.approx(0.035 * 2)
+
+
+def test_completion_cost_dashscope_image_generation(monkeypatch):
+    """End-to-end: completion_cost() over an ImageResponse must price per image."""
+    from litellm import completion_cost
+    from litellm.types.utils import ImageObject, ImageResponse
+
+    monkeypatch.setattr(
+        litellm,
+        "model_cost",
+        {
+            "dashscope/qwen-image-2.0-pro": {
+                "litellm_provider": "dashscope",
+                "mode": "image_generation",
+                "output_cost_per_image": 0.075,
+            }
+        },
+    )
+
+    response = ImageResponse(
+        created=1750733889,
+        data=[ImageObject(url="https://example.com/img.png")],
+    )
+    cost = completion_cost(
+        completion_response=response,
+        model="dashscope/qwen-image-2.0-pro",
+        call_type="image_generation",
+        custom_llm_provider="dashscope",
+    )
+    assert cost == pytest.approx(0.075)
+
+
 def test_cost_calculator_with_cache_creation():
     from litellm import completion_cost
     from litellm.types.utils import Choices, Message, Usage
