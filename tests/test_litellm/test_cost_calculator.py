@@ -953,34 +953,37 @@ def test_default_image_cost_calculator(monkeypatch):
     assert cost == 10485760
 
 
-def test_default_image_cost_calculator_output_cost_per_image(monkeypatch):
+def test_dashscope_image_entries_use_input_cost_per_image():
     """
-    Regression: DashScope image models bill per generated image via
-    output_cost_per_image. Before the fix the calculator only understood
-    input_cost_per_image / input_cost_per_pixel and raised, so proxy spend
-    tracking logged 0 for every dashscope image generation.
+    Regression: DashScope image models bill per generated image. The deployed
+    proxy overlays only model_prices_and_context_window.json (not the cost
+    calculator), and default_image_cost_calculator reads input_cost_per_image
+    exclusively — per-token fields (or output_cost_per_image) make it raise,
+    which spend tracking swallows and logs cost 0.
     """
-    from litellm.cost_calculator import default_image_cost_calculator
+    import json
+    from pathlib import Path
 
-    monkeypatch.setattr(
-        litellm,
-        "model_cost",
-        {
-            "dashscope/qwen-image-2.0": {
-                "litellm_provider": "dashscope",
-                "mode": "image_generation",
-                "output_cost_per_image": 0.035,
-            }
-        },
+    price_map = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "model_prices_and_context_window.json"
+        ).read_text()
     )
-
-    cost = default_image_cost_calculator(
-        model="dashscope/qwen-image-2.0",
-        custom_llm_provider="dashscope",
-        n=2,
-        size="1024-x-1024",
-    )
-    assert cost == pytest.approx(0.035 * 2)
+    dashscope_image = {
+        k: v
+        for k, v in price_map.items()
+        if k.startswith("dashscope/") and v.get("mode") == "image_generation"
+    }
+    assert dashscope_image, "expected dashscope image_generation entries in price map"
+    for key, entry in dashscope_image.items():
+        assert entry.get("input_cost_per_image", 0) > 0, key
+        for bad_field in (
+            "input_cost_per_token",
+            "output_cost_per_token",
+            "output_cost_per_image",
+        ):
+            assert bad_field not in entry, f"{key} must not carry {bad_field}"
 
 
 def test_completion_cost_dashscope_image_generation(monkeypatch):
@@ -995,7 +998,7 @@ def test_completion_cost_dashscope_image_generation(monkeypatch):
             "dashscope/qwen-image-2.0-pro": {
                 "litellm_provider": "dashscope",
                 "mode": "image_generation",
-                "output_cost_per_image": 0.075,
+                "input_cost_per_image": 0.075,
             }
         },
     )

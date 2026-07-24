@@ -511,10 +511,11 @@ def build_entry(model: ModelPrice, provider: str) -> dict:
 
     if mode == "image_generation":
         # DashScope image models bill per generated image; the "$X" parsed from
-        # the pricing table is USD per image, not per million tokens. litellm's
-        # image cost calculator reads output_cost_per_image, never *_per_token.
+        # the pricing table is USD per image, not per million tokens.
+        # default_image_cost_calculator reads input_cost_per_image (same field
+        # gpt-image-1 uses for its per-image price), never *_per_token.
         entry["supported_endpoints"] = ["/v1/images/generations"]
-        entry["output_cost_per_image"] = tiers[0].output_per_m
+        entry["input_cost_per_image"] = tiers[0].output_per_m
         return entry
 
     if mode in ("embedding", "rerank"):
@@ -558,7 +559,7 @@ PRICE_FIELDS = (
     "input_cost_per_token",
     "output_cost_per_token",
     "output_cost_per_reasoning_token",
-    "output_cost_per_image",
+    "input_cost_per_image",
     "tiered_pricing",
     "provider_pricing_currency",
     "source",
@@ -573,10 +574,11 @@ def merge_entry(existing: dict, new: dict) -> dict:
     for k in PRICE_FIELDS:
         if k in new:
             merged[k] = new[k]
-    # image models bill per image; drop stale token costs left over from when
-    # they were mis-synced as chat / token-billed models
+    # image models bill per image; drop stale costs left over from when they
+    # were mis-synced as token-billed models or wrote output_cost_per_image
+    # (a field default_image_cost_calculator never reads)
     if new.get("mode") == "image_generation":
-        for stale in ("input_cost_per_token", "output_cost_per_token"):
+        for stale in ("input_cost_per_token", "output_cost_per_token", "output_cost_per_image"):
             if stale not in new:
                 merged.pop(stale, None)
     # ensure capability flags exist for new chat models without wiping customs
@@ -949,13 +951,19 @@ def _self_check() -> None:
     assert img["mode"] == "image_generation"
     assert "input_cost_per_token" not in img, "image models bill per image, not per token"
     assert "output_cost_per_token" not in img, "image models bill per image, not per token"
-    assert img["output_cost_per_image"] == 0.075, "parsed $ price is USD per image"
+    assert img["input_cost_per_image"] == 0.075, "parsed $ price is USD per image"
     assert img["supported_endpoints"] == ["/v1/images/generations"]
-    stale = {"mode": "image_generation", "input_cost_per_token": 1e-08, "output_cost_per_token": 1e-08}
+    stale = {
+        "mode": "image_generation",
+        "input_cost_per_token": 1e-08,
+        "output_cost_per_token": 1e-08,
+        "output_cost_per_image": 0.075,
+    }
     merged_img = merge_entry(stale, img)
     assert "input_cost_per_token" not in merged_img, "merge must drop stale input cost"
     assert "output_cost_per_token" not in merged_img, "merge must drop stale per-token output cost"
-    assert merged_img["output_cost_per_image"] == 0.075
+    assert "output_cost_per_image" not in merged_img, "merge must drop unread output_cost_per_image"
+    assert merged_img["input_cost_per_image"] == 0.075
     assert "ap-southeast-1" in console_url("singapore")
     assert "url=prices" in console_url("singapore")
     # regression: duplicate top-level keys and unrelated providers must survive
