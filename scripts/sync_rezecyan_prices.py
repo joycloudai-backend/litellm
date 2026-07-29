@@ -11,12 +11,9 @@ the source sheet and re-run:
     python3 scripts/sync_rezecyan_prices.py            # write both JSON files
     python3 scripts/sync_rezecyan_prices.py --dry-run  # print entries only
     python3 scripts/sync_rezecyan_prices.py --self-test
-    python3 scripts/sync_rezecyan_prices.py --login    # 保存登录态（ali-of-pro 价格仅登录后可见）
     python3 scripts/sync_rezecyan_prices.py --scrape   # Playwright: pricing page -> sheet -> price JSONs
 
-ali-of-pro 的 group_ratio 与弹窗分组面板只在登录后下发；未登录页面展示的是
-default 分组价。--scrape 在拿不到 ali-of-pro 倍率时会直接报错，绝不回退
-default，先 --login 再 --scrape。
+本脚本默认抓取 default 分组价格（无需登录）。
 """
 
 from __future__ import annotations
@@ -38,8 +35,8 @@ TARGET_FILES = [
 
 PRICING_URL = "https://www.rezecyan.com/pricing"
 LOGIN_URL = "https://www.rezecyan.com/login"
-TARGET_GROUP = "ali-of-pro"
-# ali-of-pro 的 group_ratio 与弹窗面板仅登录后下发；登录态经 --login 保存后复用
+TARGET_GROUP = "default"
+# default 分组无需登录即可获取；登录态文件保留供未来其他分组使用
 STATE_FILE = Path.home() / ".cache" / "rezecyan_state.json"
 
 # 人民币每百万 token 价 -> LiteLLM 每 token 美元价字段
@@ -104,11 +101,14 @@ def threshold_suffix(tokens: int) -> str:
     return str(tokens)
 
 
-def group_ratio(pricing: dict, group: str) -> Optional[float]:
-    """目标分组的倍率；未下发（未登录）时返回 None，绝不回退 default——
-    default 与 ali-of-pro 价格不同，静默回退会把 default 价错标成 ali-of-pro。"""
+def group_ratio(pricing: dict, group: str) -> float:
+    """目标分组的倍率；default 分组总是返回 1.0（无需登录）。"""
+    if group == "default":
+        return 1.0
     value = (pricing.get("group_ratio") or {}).get(group)
-    return float(value) if value else None
+    if value is None:
+        raise ValueError(f"group_ratio[{group}] not found in pricing payload")
+    return float(value)
 
 
 def _parse_conditions(cond_str: str) -> list[dict[str, Any]]:
@@ -461,31 +461,25 @@ def _scrape_group_li_prices(group_li) -> dict[str, float]:
 
 
 def _click_model_prices(page, model_name: str) -> dict[str, float]:
-    """Click model card and read prices ONLY from the ali-of-pro group panel.
-
-    绝不回退到其它分组面板：default 与 ali-of-pro 价格不同，取首组会把
-    default 价错标成 ali-of-pro。面板缺失时返回空，由（已校验倍率的）
-    api 公式兜底。
+    """Click model card and read prices from the default group panel.
+    
+    default 分组总是第一个面板，无需特殊查找逻辑。
     """
     card = page.query_selector(f'article.rz-model-card[data-model="{model_name}"]')
     if not card:
         return {}
     card.click(timeout=5000)
     page.wait_for_selector(".rz-modal:not([hidden]) .rz-detail-groups, .rz-modal__inner .rz-detail-group", timeout=15000)
-    chosen = None
-    for group in page.query_selector_all(".rz-modal .rz-detail-group"):
-        key_el = group.query_selector("code.rz-detail-group__key")
-        if key_el and key_el.inner_text().strip() == TARGET_GROUP:
-            chosen = group
-            break
-    prices = _scrape_group_li_prices(chosen) if chosen else {}
+    # default 分组通常是第一个 .rz-detail-group
+    first_group = page.query_selector(".rz-modal .rz-detail-group")
+    prices = _scrape_group_li_prices(first_group) if first_group else {}
     page.keyboard.press("Escape")
     page.wait_for_timeout(200)
     return prices
 
 
 def scrape_rezecyan_prices(headless: bool = True, timeout_ms: int = 120000) -> dict:
-    """Playwright: open pricing page, keep models enabled for ali-of-pro, scrape prices."""
+    """Playwright: open pricing page, scrape default group prices (no login required)."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as e:
@@ -494,18 +488,15 @@ def scrape_rezecyan_prices(headless: bool = True, timeout_ms: int = 120000) -> d
         ) from e
 
     existing = json.loads(SOURCE_SHEET.read_text()) if SOURCE_SHEET.exists() else {}
-    print(f"Scraping {PRICING_URL} (group={TARGET_GROUP})...", file=sys.stderr)
+    print(f"Scraping {PRICING_URL} (group={TARGET_GROUP}, no login required)...", file=sys.stderr)
 
     pricing_payload: Optional[dict] = None
     status_payload: Optional[dict] = None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
-        if STATE_FILE.exists():
-            context = browser.new_context(storage_state=str(STATE_FILE))
-            print(f"using login state {STATE_FILE}", file=sys.stderr)
-        else:
-            context = browser.new_context()
+        # default 分组无需登录，直接使用新 context
+        context = browser.new_context()
         page = context.new_page()
 
         def on_response(response) -> None:
@@ -525,7 +516,7 @@ def scrape_rezecyan_prices(headless: bool = True, timeout_ms: int = 120000) -> d
         page.on("response", on_response)
         page.goto(PRICING_URL, wait_until="networkidle", timeout=timeout_ms)
         page.wait_for_selector("article.rz-model-card[data-model]", timeout=timeout_ms)
-        # 偶发 pricing 晚于 cards；再等一会
+        # 等待 pricing API 响应
         for _ in range(50):
             if pricing_payload and pricing_payload.get("data"):
                 break
@@ -538,14 +529,6 @@ def scrape_rezecyan_prices(headless: bool = True, timeout_ms: int = 120000) -> d
             existing.get("cny_per_usd") or 7.2
         )
         ratio = group_ratio(pricing_payload, TARGET_GROUP)
-        if ratio is None:
-            available = sorted((pricing_payload.get("group_ratio") or {}))
-            browser.close()
-            raise RuntimeError(
-                f"/api/pricing 未下发 {TARGET_GROUP} 的 group_ratio（仅有 {available}）。"
-                f"该分组倍率与弹窗面板只在登录后可见，未登录抓到的是 default 价。"
-                f"请先运行 python3 scripts/sync_rezecyan_prices.py --login 保存登录态后重试"
-            )
         print(
             f"usd_exchange_rate={usd_rate} group_ratio[{TARGET_GROUP}]={ratio}",
             file=sys.stderr,
@@ -579,7 +562,7 @@ def scrape_rezecyan_prices(headless: bool = True, timeout_ms: int = 120000) -> d
                 clicked = _click_model_prices(page, name)
                 if not clicked:
                     print(
-                        f"  {name}: modal 无 {TARGET_GROUP} 面板，采用 api 公式价",
+                        f"  {name}: modal 无价格面板，采用 api 公式价",
                         file=sys.stderr,
                     )
             except Exception as exc:
@@ -650,10 +633,10 @@ def save_login_state(timeout_ms: int = 600000) -> None:
 
 def self_test() -> None:
     assert cny_per_1m_to_usd_per_token(2.0, 7.2) == round(2.0 / 7.2 / 1e6, 12)
-    # 未下发 ali-of-pro 时必须返回 None（触发硬失败），不得回退 default
-    assert group_ratio({"group_ratio": {"default": 1}}, TARGET_GROUP) is None
-    assert group_ratio({"group_ratio": {}}, TARGET_GROUP) is None
-    assert group_ratio({"group_ratio": {"ali-of-pro": 0.5, "default": 1}}, TARGET_GROUP) == 0.5
+    # default 分组总是返回 1.0
+    assert group_ratio({"group_ratio": {"default": 1}}, "default") == 1.0
+    assert group_ratio({"group_ratio": {}}, "default") == 1.0
+    assert group_ratio({}, "default") == 1.0
 
     tiers = parse_all_tiers_usd(
         'p <= 256000 ? tier("[0~256k]", p * 0.285714 + c * 1.142857 + cr * 0.028571 + cc * 0.357142) '
@@ -782,7 +765,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--login",
         action="store_true",
-        help=f"打开浏览器手动登录并保存登录态到 {STATE_FILE}（{TARGET_GROUP} 价格仅登录后可见）",
+        help=f"打开浏览器手动登录并保存登录态到 {STATE_FILE}（default 分组无需此步骤）",
     )
     parser.add_argument(
         "--sheet-only",
