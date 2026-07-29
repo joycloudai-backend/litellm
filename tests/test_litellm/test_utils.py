@@ -1075,6 +1075,43 @@ def test_get_model_info_gemini():
             assert info.get("rpm") is not None, f"{model} does not have rpm"
 
 
+def test_get_model_info_passes_through_arbitrary_above_thresholds():
+    """
+    Step-pricing providers (DashScope third-party models, Rezecyan) use tier
+    thresholds like 32k/256k that are not in ModelInfoBase's explicit kwargs.
+    get_model_info must pass those keys through so generic_cost_per_token's
+    threshold scan bills the whole request at the matched tier.
+    """
+    os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
+    litellm.model_cost = litellm.get_model_cost_map(url="")
+    model = "step-tier-passthrough-test-model"
+    litellm.model_cost[model] = {
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "input_cost_per_token": 1e-06,
+        "output_cost_per_token": 2e-06,
+        "input_cost_per_token_above_32k_tokens": 3e-06,
+        "output_cost_per_token_above_32k_tokens": 4e-06,
+    }
+    try:
+        info = litellm.get_model_info(model, custom_llm_provider="openai")
+        assert info["input_cost_per_token_above_32k_tokens"] == 3e-06
+        assert info["output_cost_per_token_above_32k_tokens"] == 4e-06
+        # whitelisted thresholds (e.g. 128k) must still default to None, not leak
+        assert info["input_cost_per_token_above_128k_tokens"] is None
+
+        prompt_cost, completion_cost = litellm.cost_per_token(
+            model=model,
+            custom_llm_provider="openai",
+            prompt_tokens=33_000,
+            completion_tokens=1_000,
+        )
+        assert prompt_cost == pytest.approx(33_000 * 3e-06)
+        assert completion_cost == pytest.approx(1_000 * 4e-06)
+    finally:
+        litellm.model_cost.pop(model, None)
+
+
 def test_openai_models_in_model_info():
     os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
     litellm.model_cost = litellm.get_model_cost_map(url="")

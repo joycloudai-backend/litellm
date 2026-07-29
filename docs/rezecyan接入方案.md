@@ -23,7 +23,7 @@
 
 | # | 问题 | 结论 |
 |---|------|------|
-| 1 | 模型清单与官方价格 | 手工维护 `scripts/rezecyan_prices.json`（人民币牌价源），`model_prices_and_context_window.json` 的 `rezecyan/*` 由 `scripts/sync_rezecyan_prices.py` 按固定汇率生成 |
+| 1 | 模型清单与官方价格 | `scripts/sync_rezecyan_prices.py --scrape` 用 Playwright 从定价页拉取（只取 `ali-of-pro` 分组，**需先 `--login` 保存登录态**——该分组倍率与弹窗面板仅登录后下发，未登录只能看到 default 分组价，脚本此时直接报错不回退），写入 `rezecyan_prices.json` 并同步两份 `model_prices` JSON（先清旧 `rezecyan/*` 再写入去重） |
 | 2 | reasoning tokens 计费 | **不另计费**；已含在 `completion_tokens` 内，价格表不写 `output_cost_per_reasoning_token` |
 | 3 | 缓存命中价 | **有**：缓存读取 / 缓存写入分别入表（`cache_read_input_token_cost` / `cache_creation_input_token_cost`） |
 | 4 | 端点范围 | chat + embeddings + rerank + images/generations |
@@ -32,7 +32,7 @@
 | 7 | provider 命名 | LiteLLM 前缀 `rezecyan`，erp 常量 `"Rezecyan"` |
 | 8 | 前端 | 本期**只列修改点**供前端开发，不改 joycloud-web 代码 |
 
-币种：统一 **USD 入价格表**；内部结算汇率初始 **7.2**（与火山视频 `LITELLM_VOLCENGINE_VIDEO_CNY_PER_USD` 同值、同批调整）。
+币种：统一 **USD 入价格表**；爬取时默认采用站点 `usd_exchange_rate`（当前为 **7.0**），可在源表改 `cny_per_usd` 后直接再跑一遍脚本（无 `--scrape`）重生成。
 
 ## 三、改动落地
 
@@ -57,11 +57,13 @@ tests/test_litellm/llms/rezecyan/...
 `get_llm_provider_logic.py`、`utils.py` ProviderConfigManager（chat/embed/rerank/image）、
 `__init__.py` 模型集合 + 懒加载、`Dockerfile.volcengine` overlay。
 
-定价示例（`qwen3.7-plus`，牌价 ¥2/¥8/缓存读 ¥0.2/缓存写 ¥2.5 每 1M，汇率 7.2）：
+定价示例（`qwen3.7-plus`，`ali-of-pro`：≤256k 为 ¥2/¥8/缓存读 ¥0.2/缓存写 ¥2.5；>256k 写入 `*_above_256k_tokens`）：
 
 ```bash
+pip install playwright && playwright install chromium
 python3 scripts/sync_rezecyan_prices.py --self-test
-python3 scripts/sync_rezecyan_prices.py   # 写入两份价格 JSON
+python3 scripts/sync_rezecyan_prices.py --login    # 首次：浏览器登录并保存登录态
+python3 scripts/sync_rezecyan_prices.py --scrape   # 爬取 + 写入两份价格 JSON
 ```
 
 ### 3.2 erp
@@ -249,8 +251,8 @@ if (cloudProvider === 'Rezecyan') return 'Rezecyan'
 
 ## 四、汇率维护
 
-1. **单一汇率源**：`scripts/rezecyan_prices.json` 的 `cny_per_usd`（初始 7.2）
-2. **生成脚本**：`scripts/sync_rezecyan_prices.py` 换算写入价格 JSON，条目附审计字段（原 CNY、汇率、as_of）
+1. **单一汇率源**：`scripts/rezecyan_prices.json` 的 `cny_per_usd`（爬取默认跟站点；可手工改）
+2. **生成脚本**：`scripts/sync_rezecyan_prices.py`（`--scrape` 拉取 `ali-of-pro`）换算写入价格 JSON，条目附审计字段（原 CNY、汇率、as_of）
 3. **调整节奏**：不追每日即期价；季度审查或偏离 ±3% 时改源文件一个数字 → 重跑脚本 → 重建镜像
 4. **历史账不追溯**：spend log 是计费时刻快照；对账用源文件人民币原价
 

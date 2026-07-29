@@ -6021,7 +6021,7 @@ def _get_model_info_helper(
                 )
                 _output_cost_per_token = 0
 
-            return ModelInfoBase(
+            model_info_base = ModelInfoBase(
                 key=key,
                 max_tokens=_model_info.get("max_tokens", None),
                 max_input_tokens=_model_info.get("max_input_tokens", None),
@@ -6238,6 +6238,18 @@ def _get_model_info_helper(
                 uses_embed_content=_model_info.get("uses_embed_content", None),
                 supports_image_size=_model_info.get("supports_image_size", None),
             )
+            # Step-pricing thresholds are arbitrary per provider (e.g.
+            # input_cost_per_token_above_32k_tokens for DashScope/Rezecyan);
+            # the explicit kwargs above only cover a fixed set (128k/200k/...).
+            # Pass the rest through so _get_token_base_cost's key scan sees them.
+            for _above_key, _above_value in _model_info.items():
+                if (
+                    "_above_" in _above_key
+                    and _above_key.endswith("_tokens")
+                    and _above_key not in model_info_base
+                ):
+                    model_info_base[_above_key] = _above_value  # type: ignore[literal-required]
+            return model_info_base
     except Exception as e:
         verbose_logger.debug(f"Error getting model info: {e}")
         raise Exception(

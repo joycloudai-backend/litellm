@@ -28,6 +28,10 @@ Examples:
   python scripts/sync_dashscope_prices.py --source console --region singapore --list-models
 
 Notes:
+  - DashScope bills tiered models by step: total input tokens pick one tier, the whole
+    request is charged at that tier. Native dashscope keys keep tiered_pricing (step-billed
+    by litellm/llms/dashscope/cost_calculator.py); third-party keys (litellm_provider=openai)
+    use *_above_{N}k_tokens fields so the generic cost path applies the same step billing.
   - Help doc is a single page (region sections + "More models"); --page is informational only.
   - Cache unit prices are on a separate doc and are not scraped (existing cache_* fields kept).
   - Promotional labels are ignored; "List price $X" is preferred when present.
@@ -178,6 +182,12 @@ def per_token(per_million: Optional[float]) -> Optional[float]:
     if per_million is None:
         return None
     return per_million / 1_000_000.0
+
+
+def threshold_label(tokens: float) -> str:
+    """32000.0 → '32k' (generic calculator parses both '_above_32k_tokens' and '_above_32000_tokens')."""
+    n = int(tokens)
+    return f"{n // 1000}k" if n % 1000 == 0 else str(n)
 
 
 def price_key(model_id: str, suffix: str) -> tuple[str, str]:
@@ -523,7 +533,9 @@ def build_entry(model: ModelPrice, provider: str) -> dict:
         entry["output_cost_per_token"] = 0.0
         return entry
 
-    if use_tiered:
+    if use_tiered and provider == "dashscope":
+        # Native models route to litellm/llms/dashscope/cost_calculator.py, which
+        # applies step billing over tiered_pricing (tier chosen by total input tokens).
         tiered = []
         for t in tiers:
             item = {
@@ -542,6 +554,24 @@ def build_entry(model: ModelPrice, provider: str) -> dict:
         entry["output_cost_per_token"] = tiered[0]["output_cost_per_token"]
         if "output_cost_per_reasoning_token" in tiered[0]:
             entry["output_cost_per_reasoning_token"] = tiered[0]["output_cost_per_reasoning_token"]
+        return entry
+
+    if use_tiered:
+        # Third-party models (litellm_provider=openai) bill via the generic cost
+        # path, which ignores tiered_pricing but implements the same step billing
+        # through *_above_{N}k_tokens keys (tier chosen by total input tokens).
+        t0 = tiers[0]
+        entry["input_cost_per_token"] = per_token(t0.input_per_m)
+        entry["output_cost_per_token"] = per_token(t0.output_per_m)
+        if (
+            t0.output_thinking_per_m is not None
+            and abs(t0.output_thinking_per_m - t0.output_per_m) > 1e-9
+        ):
+            entry["output_cost_per_reasoning_token"] = per_token(t0.output_thinking_per_m)
+        for t in tiers[1:]:
+            label = threshold_label(t.range[0])  # type: ignore[index]
+            entry[f"input_cost_per_token_above_{label}_tokens"] = per_token(t.input_per_m)
+            entry[f"output_cost_per_token_above_{label}_tokens"] = per_token(t.output_per_m)
         return entry
 
     t = tiers[0]
@@ -567,6 +597,8 @@ PRICE_FIELDS = (
     "mode",
 )
 
+ABOVE_KEY_RE = re.compile(r"_above_\d+k?_tokens$")
+
 
 def merge_entry(existing: dict, new: dict) -> dict:
     """Update price-related fields; keep max_tokens / supports_* / cache_* etc."""
@@ -574,6 +606,20 @@ def merge_entry(existing: dict, new: dict) -> dict:
     for k in PRICE_FIELDS:
         if k in new:
             merged[k] = new[k]
+    for k, v in new.items():
+        if ABOVE_KEY_RE.search(k):
+            merged[k] = v
+    # token-billed refresh: drop stale tier fields from a previous format/tiering
+    # (e.g. openai-provider entries migrated from tiered_pricing to above_* keys)
+    if "input_cost_per_token" in new:
+        if "tiered_pricing" not in new:
+            merged.pop("tiered_pricing", None)
+        for k in list(merged):
+            # ponytail: cache_* above keys are kept even if thresholds changed —
+            # this script never scrapes cache prices, so it must not delete them;
+            # stale-threshold cache keys need a manual fix if tiering ever moves
+            if ABOVE_KEY_RE.search(k) and k not in new and not k.startswith("cache_"):
+                merged.pop(k)
     # image models bill per image; drop stale costs left over from when they
     # were mis-synced as token-billed models or wrote output_cost_per_image
     # (a field default_image_cost_calculator never reads)
@@ -964,6 +1010,51 @@ def _self_check() -> None:
     assert "output_cost_per_token" not in merged_img, "merge must drop stale per-token output cost"
     assert "output_cost_per_image" not in merged_img, "merge must drop unread output_cost_per_image"
     assert merged_img["input_cost_per_image"] == 0.075
+    assert threshold_label(32000.0) == "32k"
+    assert threshold_label(200000.0) == "200k"
+    assert threshold_label(1500.0) == "1500"
+    step_tiers = [
+        Tier(range=[0.0, 32000.0], input_per_m=0.573, output_per_m=2.58),
+        Tier(range=[32000.0, 200000.0], input_per_m=0.86, output_per_m=3.154),
+    ]
+    third_party = build_entry(
+        ModelPrice(
+            model_id="glm-5",
+            region_heading="Singapore",
+            deployment_scope="International",
+            section_path="Text generation",
+            tiers=step_tiers,
+        ),
+        "openai",
+    )
+    assert "tiered_pricing" not in third_party, "openai provider must use above_* step keys"
+    assert third_party["input_cost_per_token"] == 0.573 / 1_000_000
+    assert third_party["input_cost_per_token_above_32k_tokens"] == 0.86 / 1_000_000
+    assert third_party["output_cost_per_token_above_32k_tokens"] == 3.154 / 1_000_000
+    native = build_entry(
+        ModelPrice(
+            model_id="qwen-flash",
+            region_heading="Singapore",
+            deployment_scope="International",
+            section_path="Text generation",
+            tiers=step_tiers,
+        ),
+        "dashscope",
+    )
+    assert len(native["tiered_pricing"]) == 2, "dashscope provider keeps tiered_pricing"
+    assert "input_cost_per_token_above_32k_tokens" not in native
+    stale_tiered = {
+        "tiered_pricing": [{"range": [0, 1], "input_cost_per_token": 1.0}],
+        "input_cost_per_token_above_128k_tokens": 1.0,
+        "cache_read_input_token_cost_above_32k_tokens": 1.72e-07,
+        "max_tokens": 4,
+    }
+    migrated = merge_entry(stale_tiered, third_party)
+    assert "tiered_pricing" not in migrated, "migration must drop tiered_pricing"
+    assert "input_cost_per_token_above_128k_tokens" not in migrated, "stale threshold must go"
+    assert migrated["cache_read_input_token_cost_above_32k_tokens"] == 1.72e-07
+    assert migrated["input_cost_per_token_above_32k_tokens"] == 0.86 / 1_000_000
+    assert migrated["max_tokens"] == 4
     assert "ap-southeast-1" in console_url("singapore")
     assert "url=prices" in console_url("singapore")
     # regression: duplicate top-level keys and unrelated providers must survive
