@@ -306,6 +306,7 @@ LLM_CONFIG_NAMES = (
     "GigaChatConfig",
     "GigaChatEmbeddingConfig",
     "DashScopeChatConfig",
+    "RezecyanChatConfig",
     "ModelScopeChatConfig",
     "MoonshotChatConfig",
     "DockerModelRunnerChatConfig",
@@ -1161,6 +1162,10 @@ _LLM_CONFIGS_IMPORT_MAP = {
     "DashScopeChatConfig": (
         ".llms.dashscope.chat.transformation",
         "DashScopeChatConfig",
+    ),
+    "RezecyanChatConfig": (
+        ".llms.rezecyan.chat.transformation",
+        "RezecyanChatConfig",
     ),
     "ModelScopeChatConfig": (
         ".llms.modelscope.chat.transformation",

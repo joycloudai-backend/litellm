@@ -12,6 +12,9 @@ COPY litellm/llms/volcengine/                   /overlay/litellm/llms/volcengine
 COPY litellm/llms/byteplus/                     /overlay/litellm/llms/byteplus/
 # DashScope provider (chat/embed/rerank; rerank routes to /compatible-api/v1/reranks)
 COPY litellm/llms/dashscope/                    /overlay/litellm/llms/dashscope/
+# Rezecyan provider (chat/embed/rerank/images; OpenAI-compatible aggregator)
+COPY litellm/llms/rezecyan/                     /overlay/litellm/llms/rezecyan/
+COPY litellm/_lazy_imports_registry.py          /overlay/litellm/
 COPY litellm/llms/custom_httpx/aiohttp_transport.py /overlay/litellm/llms/custom_httpx/
 COPY litellm/proxy/spend_tracking/volcengine_video_billing.py /overlay/litellm/proxy/spend_tracking/
 COPY litellm/proxy/db/db_spend_update_writer.py /overlay/litellm/proxy/db/

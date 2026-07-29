@@ -6868,6 +6868,11 @@ def validate_environment(
                 keys_in_environment = True
             else:
                 missing_keys.append("DASHSCOPE_API_KEY")
+        elif custom_llm_provider == "rezecyan":
+            if "REZECYAN_API_KEY" in os.environ:
+                keys_in_environment = True
+            else:
+                missing_keys.append("REZECYAN_API_KEY")
         elif custom_llm_provider == "modelscope":
             if "MODELSCOPE_API_KEY" in os.environ:
                 keys_in_environment = True
@@ -8544,6 +8549,7 @@ class ProviderConfigManager:
             LlmProviders.NEBIUS: (lambda: litellm.NebiusConfig(), False),
             LlmProviders.WANDB: (lambda: litellm.WandbConfig(), False),
             LlmProviders.DASHSCOPE: (lambda: litellm.DashScopeChatConfig(), False),
+            LlmProviders.REZECYAN: (lambda: litellm.RezecyanChatConfig(), False),
             LlmProviders.MODELSCOPE: (lambda: litellm.ModelScopeChatConfig(), False),
             LlmProviders.MOONSHOT: (lambda: litellm.MoonshotChatConfig(), False),
             LlmProviders.DOCKER_MODEL_RUNNER: (
@@ -8762,6 +8768,12 @@ class ProviderConfigManager:
             )
 
             return DashScopeEmbeddingConfig()
+        elif litellm.LlmProviders.REZECYAN == provider:
+            from litellm.llms.rezecyan.embed.transformation import (
+                RezecyanEmbeddingConfig,
+            )
+
+            return RezecyanEmbeddingConfig()
         elif litellm.LlmProviders.OVHCLOUD == provider:
             return litellm.OVHCloudEmbeddingConfig()
         elif litellm.LlmProviders.SNOWFLAKE == provider:
@@ -8843,6 +8855,12 @@ class ProviderConfigManager:
             )
 
             return DashScopeRerankConfig()
+        elif litellm.LlmProviders.REZECYAN == provider:
+            from litellm.llms.rezecyan.rerank.transformation import (
+                RezecyanRerankConfig,
+            )
+
+            return RezecyanRerankConfig()
         return litellm.CohereRerankConfig()
 
     @staticmethod
@@ -9475,6 +9493,12 @@ class ProviderConfigManager:
             )
 
             return get_dashscope_image_generation_config(model)
+        elif LlmProviders.REZECYAN == provider:
+            from litellm.llms.rezecyan.image_generation import (
+                get_rezecyan_image_generation_config,
+            )
+
+            return get_rezecyan_image_generation_config(model)
         elif LlmProviders.MODELSCOPE == provider:
             from litellm.llms.modelscope.image_generation import (
                 get_modelscope_image_generation_config,

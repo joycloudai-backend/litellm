@@ -44984,5 +44984,30 @@
             "video"
         ],
         "volcengine_video_output_cost_per_million_tokens_without_input_video": 1
+    },
+    "rezecyan/qwen3.7-plus": {
+        "cache_creation_input_token_cost": 3.47222e-07,
+        "cache_read_input_token_cost": 2.7778e-08,
+        "cny_per_usd_rate": 7.2,
+        "input_cost_per_token": 2.77778e-07,
+        "litellm_provider": "rezecyan",
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 32768,
+        "max_tokens": 32768,
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 2.5,
+            "cache_read_cny_per_1m": 0.2,
+            "input_cny_per_1m": 2.0,
+            "output_cny_per_1m": 8.0
+        },
+        "output_cost_per_token": 1.111111e-06,
+        "price_as_of": "2026-07-28",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.rezecyan.com/pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
     }
 }

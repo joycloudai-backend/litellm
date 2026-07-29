@@ -334,6 +334,9 @@ def get_llm_provider(
                     elif endpoint == "dashscope-intl.aliyuncs.com/compatible-mode/v1":
                         custom_llm_provider = "dashscope"
                         dynamic_api_key = get_secret_str("DASHSCOPE_API_KEY")
+                    elif endpoint == "www.rezecyan.com/v1":
+                        custom_llm_provider = "rezecyan"
+                        dynamic_api_key = get_secret_str("REZECYAN_API_KEY")
                     elif endpoint == "https://api-inference.modelscope.cn/v1":
                         custom_llm_provider = "modelscope"
                         dynamic_api_key = get_secret_str("MODELSCOPE_API_KEY")
@@ -939,6 +942,13 @@ def _get_openai_compatible_provider_info(
             api_base,
             dynamic_api_key,
         ) = litellm.DashScopeChatConfig()._get_openai_compatible_provider_info(
+            api_base, api_key
+        )
+    elif custom_llm_provider == "rezecyan":
+        (
+            api_base,
+            dynamic_api_key,
+        ) = litellm.RezecyanChatConfig()._get_openai_compatible_provider_info(
             api_base, api_key
         )
     elif custom_llm_provider == "modelscope":
