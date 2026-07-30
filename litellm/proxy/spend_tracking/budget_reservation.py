@@ -4,7 +4,7 @@ import asyncio
 import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Sequence, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 import litellm
 from litellm._logging import verbose_proxy_logger
@@ -50,10 +50,49 @@ def get_reserved_counter_keys(budget_reservation: Optional[dict]) -> set:
         return set()
     entries = budget_reservation.get("entries") or []
     return {
-        entry["counter_key"]
-        for entry in entries
-        if isinstance(entry, dict) and entry.get("counter_key") is not None
+        entry["counter_key"] for entry in entries if isinstance(entry, dict) and entry.get("counter_key") is not None
     }
+
+
+def _normalize_route_path(route: str) -> str:
+    return route.split("?", 1)[0].rstrip("/")
+
+
+def _is_video_create_like_route(route: str) -> bool:
+    """POST create / remix / edits / extensions — not status, list, or content."""
+    path = _normalize_route_path(route)
+    if path in {
+        "/videos",
+        "/v1/videos",
+        "/openai/v1/videos",
+        "/videos/edits",
+        "/v1/videos/edits",
+        "/openai/v1/videos/edits",
+        "/videos/extensions",
+        "/v1/videos/extensions",
+        "/openai/v1/videos/extensions",
+        "/videos/characters",
+        "/v1/videos/characters",
+        "/openai/v1/videos/characters",
+    }:
+        return True
+    return path.endswith("/remix")
+
+
+def _is_fixed_floor_cost_route(route: str) -> bool:
+    """
+    Modalities with a hard floor cost. Shrink-to-remaining would admit a
+    request that still bills the full floor on settle and overspend.
+    """
+    if _is_video_create_like_route(route):
+        return True
+    path = _normalize_route_path(route)
+    return path.endswith("/images/generations") or path.endswith("/images/edits")
+
+
+def _allows_reservation_shrink_to_remaining(route: str) -> bool:
+    # Chat/completions can usefully shrink (last tokens). Video/image cannot.
+    return not _is_fixed_floor_cost_route(route)
 
 
 async def reserve_budget_for_request(
@@ -72,6 +111,9 @@ async def reserve_budget_for_request(
     if valid_token is None or not RouteChecks.is_llm_api_route(route=route):
         return None
     if route in {"/models", "/v1/models", "/utils/token_counter"}:
+        return None
+    # Status / content / list must not hold video budget (and must not 429 polls).
+    if "/videos" in route and not _is_video_create_like_route(route):
         return None
     if get_model_from_request(request_body, route, llm_router=llm_router) is None:
         return None
@@ -132,10 +174,11 @@ async def reserve_budget_for_request(
                     cached_spend = await _get_current_counter_value(counter=counter)
                 current_spend = cached_spend + reservation_cost
             if current_spend > counter.max_budget:
-                remaining_before_reservation = counter.max_budget - (
-                    current_spend - reservation_cost
-                )
-                if remaining_before_reservation > 1e-12:
+                remaining_before_reservation = counter.max_budget - (current_spend - reservation_cost)
+                # Chat may shrink to leftover budget; video/image must not —
+                # e.g. spend=32.68 max=32.7 leaves $0.02, which would otherwise
+                # admit a ~$1+ video create and overspend on async settle.
+                if remaining_before_reservation > 1e-12 and _allows_reservation_shrink_to_remaining(route):
                     await _resize_applied_reservation(
                         entries=applied_entries,
                         current_reserved_cost=reservation_cost,
@@ -163,9 +206,7 @@ async def reserve_budget_for_request(
     if not applied_entries:
         return None
 
-    input_cost = estimate_request_input_cost(
-        request_body=request_body, route=route, llm_router=llm_router
-    )
+    input_cost = estimate_request_input_cost(request_body=request_body, route=route, llm_router=llm_router)
     return {
         "reserved_cost": reservation_cost,
         "entries": applied_entries,
@@ -227,9 +268,7 @@ async def release_budget_reservation_on_cancel(
     incurred_cost = float(budget_reservation.get("input_cost") or 0.0)
     try:
         await asyncio.shield(
-            reconcile_budget_reservation(
-                budget_reservation=budget_reservation, actual_cost=incurred_cost
-            )
+            reconcile_budget_reservation(budget_reservation=budget_reservation, actual_cost=incurred_cost)
         )
     except (asyncio.CancelledError, Exception):
         pass
@@ -450,20 +489,11 @@ async def _get_team_member_budget_counter(
     user_object: Optional[LiteLLM_UserTable],
     user_api_key_cache: DualCache,
 ) -> Optional[_BudgetCounter]:
-    if (
-        team_object is None
-        or team_object.team_id is None
-        or user_object is None
-        or valid_token.user_id is None
-    ):
+    if team_object is None or team_object.team_id is None or user_object is None or valid_token.user_id is None:
         return None
 
-    membership_cache_key = (
-        f"team_membership:{valid_token.user_id}:{team_object.team_id}"
-    )
-    cached_team_membership = await user_api_key_cache.async_get_cache(
-        key=membership_cache_key
-    )
+    membership_cache_key = f"team_membership:{valid_token.user_id}:{team_object.team_id}"
+    cached_team_membership = await user_api_key_cache.async_get_cache(key=membership_cache_key)
     team_membership: Optional[LiteLLM_TeamMembership] = None
     if isinstance(cached_team_membership, LiteLLM_TeamMembership):
         team_membership = cached_team_membership
@@ -484,11 +514,7 @@ async def _get_team_member_budget_counter(
     if team_member_budget is None or team_member_budget <= 0:
         return None
 
-    team_member_spend = (
-        cast(LiteLLM_TeamMembership, team_membership).spend
-        if team_membership is not None
-        else 0.0
-    )
+    team_member_spend = cast(LiteLLM_TeamMembership, team_membership).spend if team_membership is not None else 0.0
     return _BudgetCounter(
         counter_key=f"spend:team_member:{valid_token.user_id}:{team_object.team_id}",
         source_cache_key=membership_cache_key,
@@ -609,9 +635,7 @@ async def _reserve_counter(
                 counter_key=counter.counter_key,
                 source_cache_key=counter.source_cache_key,
             )
-        elif (
-            counter.spend_log_entity_id is not None and counter.window_start is not None
-        ):
+        elif counter.spend_log_entity_id is not None and counter.window_start is not None:
             initialized = await _ensure_window_spend_counter_initialized(
                 counter_key=counter.counter_key,
                 entity_type=counter.entity_type,
@@ -723,9 +747,7 @@ async def _set_reserved_entry_actual_cost(
         # persisted, so the DB floor would discard it. Keep the original
         # fail-closed behavior (raise -> reserve_budget_for_request releases and
         # denies) rather than admitting against an inconsistent counter.
-        raise RuntimeError(
-            f"Cannot resize budget reservation against inconsistent counter {counter_key}"
-        )
+        raise RuntimeError(f"Cannot resize budget reservation against inconsistent counter {counter_key}")
     entry["applied_adjustment"] = target_adjustment
 
 
@@ -760,9 +782,7 @@ async def _release_applied_entries_best_effort(
             )
         except Exception:
             counter_key = entry.get("counter_key")
-            verbose_proxy_logger.exception(
-                "Failed to release partial budget reservation during exception cleanup"
-            )
+            verbose_proxy_logger.exception("Failed to release partial budget reservation during exception cleanup")
             if counter_key is None:
                 continue
             try:
@@ -939,6 +959,14 @@ def _estimate_request_max_cost_for_model(
     if image_cost is not None:
         return image_cost
 
+    video_cost = _estimate_video_generation_cost(
+        request_body=request_body,
+        model=model,
+        model_info=model_info,
+    )
+    if video_cost is not None:
+        return video_cost
+
     input_cost_per_token = _to_float(model_info.get("input_cost_per_token"))
     output_cost_per_token = _to_float(model_info.get("output_cost_per_token"))
     input_tokens = _estimate_input_tokens(
@@ -968,6 +996,60 @@ def _estimate_request_max_cost_for_model(
         return None
 
     return cost
+
+
+def _estimate_video_generation_cost(
+    request_body: dict,
+    model: str,
+    model_info: Dict[str, Any],
+) -> Optional[float]:
+    """
+    Reserve a conservative upper bound for video creates.
+
+    BytePlus/Volcengine Seedance uses custom per-million-token keys (not
+    input/output_cost_per_token), so the token path below would return None
+    and fall open under concurrency. Gemini-style output_cost_per_second is
+    handled here too.
+    """
+    mode = model_info.get("mode")
+    output_cost_per_second = _to_float(model_info.get("output_cost_per_second"))
+    if mode == "video_generation" and output_cost_per_second is not None:
+        duration = None
+        for key in ("seconds", "duration"):
+            duration = _to_float(request_body.get(key))
+            if duration is not None and duration > 0:
+                break
+        if duration is None or duration <= 0:
+            duration = 8.0  # common video default when caller omits length
+        return output_cost_per_second * duration
+
+    try:
+        from litellm.proxy.spend_tracking.volcengine_video_billing import (
+            estimate_ark_video_reservation_cost_usd,
+        )
+
+        cost = estimate_ark_video_reservation_cost_usd(
+            request_body=request_body,
+            model=model,
+            model_info=model_info,
+        )
+        if cost is None and model_info.get("mode") == "video_generation":
+            # ponytail: warn — None here means budget reservation is silently
+            # disabled for this video model, allowing overspend under concurrency.
+            verbose_proxy_logger.warning(
+                "Video budget reservation: cost estimate is None for model=%s. "
+                "Budget enforcement is disabled — set base_model or "
+                "provider_pricing_model on the deployment to enable.",
+                model,
+            )
+        return cost
+    except Exception:
+        verbose_proxy_logger.warning(
+            "Unable to estimate ark video reservation cost for model=%s",
+            model,
+            exc_info=True,
+        )
+        return None
 
 
 def _estimate_image_generation_cost(
@@ -1016,7 +1098,18 @@ def _get_model_cost_info(
         try:
             model_group_info = llm_router.get_model_group_info(model_group=model)
             if model_group_info is not None:
-                return model_group_info.model_dump()
+                router_info = model_group_info.model_dump()
+                # Router model_group_info may lack base_model / provider_pricing_model
+                # (deployment config fields) needed for video/image pricing lookup.
+                # Fall through to the registered cost map so video admissions don't
+                # silently skip budget enforcement when the deployment uses a custom
+                # model name without setting base_model.
+                if router_info.get("mode") == "video_generation":
+                    deployment_info = _get_video_deployment_cost_info(model=model, llm_router=llm_router)
+                    if deployment_info is not None:
+                        return deployment_info
+                if _model_cost_info_has_pricing(router_info):
+                    return router_info
         except Exception:
             verbose_proxy_logger.debug(
                 "Unable to load router model group info for budget reservation",
@@ -1026,7 +1119,139 @@ def _get_model_cost_info(
     try:
         return dict(litellm.get_model_info(model=model))
     except Exception:
+        pass
+
+    # Final fallback: try the registered cost map with provider-specific name
+    # normalization.  Volcengine / BytePlus deployments may use provider model ids
+    # with dashed versions (e.g. "doubao-seedance-2-0-260128") while pricing keys
+    # use dotted versions ("doubao-seedance-2.0").
+    try:
+        from litellm.proxy.spend_tracking.volcengine_video_billing import (
+            _candidate_pricing_models,
+        )
+
+        for candidate in _candidate_pricing_models(model):
+            entry = litellm.model_cost.get(candidate)
+            if entry and isinstance(entry, dict):
+                result = dict(entry)
+                # Cost map entries don't carry base_model (that's a deployment
+                # config field).  Inject the canonical pricing key so downstream
+                # estimate_ark_video_reservation_cost_usd can resolve pricing
+                # even when the request uses a custom deployment model name.
+                if result.get("base_model") is None and result.get("provider_pricing_model") is None:
+                    result["base_model"] = candidate
+                return result
+    except Exception:
+        pass
+
+    return None
+
+
+def _get_video_deployment_cost_info(
+    model: str,
+    llm_router: Router,
+) -> Optional[Dict[str, Any]]:
+    """Resolve video pricing from the deployment behind a custom publish name.
+
+    ModelGroupInfo drops deployment pricing handles (base_model,
+    provider_pricing_model, provider-specific keys) and auto-registered video
+    deployments surface defaulted 0.0 token costs, so a publish name like
+    "seedance-2.0" passes _model_cost_info_has_pricing while carrying no video
+    pricing at all. The reservation estimate then falls open and admits video
+    creates against a depleted budget. The deployment's own litellm_params.model
+    and pricing handles still resolve to a cost-map entry.
+    """
+    from litellm.proxy.spend_tracking.volcengine_video_billing import (
+        register_ark_video_pricing_models,
+    )
+
+    try:
+        deployments = llm_router.get_model_list(model_name=model)
+    except Exception:
+        verbose_proxy_logger.debug(
+            "Unable to list router deployments for video budget reservation",
+            exc_info=True,
+        )
         return None
+    if not deployments:
+        return None
+
+    handles: List[Tuple[str, Optional[str]]] = []
+    for deployment in deployments:
+        if not isinstance(deployment, dict):
+            continue
+        deployment_model_info = deployment.get("model_info") or {}
+        litellm_params = deployment.get("litellm_params") or {}
+        if _cost_info_has_video_pricing(deployment_model_info):
+            return dict(deployment_model_info)
+        provider = litellm_params.get("custom_llm_provider")
+        provider = provider if isinstance(provider, str) else None
+        for source in (deployment_model_info, litellm_params):
+            if not isinstance(source, dict):
+                continue
+            for key in ("provider_pricing_model", "base_model", "model"):
+                handle = source.get(key)
+                if isinstance(handle, str) and handle and (handle, provider) not in handles:
+                    handles.append((handle, provider))
+
+    register_ark_video_pricing_models()
+    for handle, provider in handles:
+        for candidate in _video_pricing_candidates(handle=handle, custom_llm_provider=provider):
+            entry = litellm.model_cost.get(candidate)
+            if _cost_info_has_video_pricing(entry):
+                result = dict(cast(Dict[str, Any], entry))
+                if result.get("base_model") is None and result.get("provider_pricing_model") is None:
+                    result["base_model"] = candidate
+                return result
+    return None
+
+
+def _video_pricing_candidates(handle: str, custom_llm_provider: Optional[str]) -> List[str]:
+    from litellm.proxy.spend_tracking.volcengine_video_billing import (
+        _candidate_pricing_models,
+    )
+
+    prefixed = [f"{custom_llm_provider}/{handle}"] if custom_llm_provider and "/" not in handle else []
+    return list(dict.fromkeys(prefixed + _candidate_pricing_models(handle)))
+
+
+def _cost_info_has_video_pricing(info: Any) -> bool:
+    if not isinstance(info, dict):
+        return False
+    if _to_float(info.get("output_cost_per_second")) is not None:
+        return True
+    return any(
+        key.startswith("volcengine_video_output_cost_per_million_tokens") and info.get(key) is not None for key in info
+    )
+
+
+_COST_PRICING_KEYS = (
+    "input_cost_per_token",
+    "output_cost_per_token",
+    "input_cost_per_image",
+    "output_cost_per_image",
+    "output_cost_per_second",
+    "base_model",
+    "provider_pricing_model",
+)
+
+
+def _model_cost_info_has_pricing(info: Dict[str, Any]) -> bool:
+    """Return True when the router's model info carries pricing data.
+
+    Token-priced models carry input/output_cost_per_token; image models carry
+    per-image costs; video models carry output_cost_per_second or a
+    base_model / provider_pricing_model handle for provider-specific pricing.
+    When none of these are present the router info is structurally valid but
+    pricing-poor — the caller should fall back to the registered cost map.
+    """
+    for key in _COST_PRICING_KEYS:
+        if info.get(key) is not None:
+            return True
+    # Volcengine / BytePlus video pricing uses prefixed keys not in the set above.
+    return any(
+        key.startswith("volcengine_video_output_cost_per_million_tokens") and info.get(key) is not None for key in info
+    )
 
 
 def _estimate_input_tokens(
@@ -1048,18 +1273,14 @@ def _estimate_input_tokens(
         if "input" in request_body:
             return _count_text_tokens(model=model, text=request_body.get("input"))
         if "query" in request_body or "documents" in request_body:
-            query_tokens = _count_text_tokens(
-                model=model, text=request_body.get("query")
-            )
+            query_tokens = _count_text_tokens(model=model, text=request_body.get("query"))
             document_tokens = _count_text_tokens(
                 model=model,
                 text=request_body.get("documents"),
             )
             return query_tokens + document_tokens
     except Exception:
-        verbose_proxy_logger.debug(
-            "Unable to count input tokens for budget reservation", exc_info=True
-        )
+        verbose_proxy_logger.debug("Unable to count input tokens for budget reservation", exc_info=True)
 
     max_input_tokens = _to_int(model_info.get("max_input_tokens"))
     if max_input_tokens is not None:
@@ -1093,10 +1314,7 @@ def _estimate_output_tokens(
     #     the reservation up to remaining team headroom and pin the counter
     #     at the cap — the model can only physically emit max_output_tokens
     #     anyway, so reserving more is both wasteful and a DoS surface.
-    model_ceiling = (
-        _to_int(model_info.get("max_output_tokens"))
-        or DEFAULT_MAX_OUTPUT_TOKENS_FALLBACK
-    )
+    model_ceiling = _to_int(model_info.get("max_output_tokens")) or DEFAULT_MAX_OUTPUT_TOKENS_FALLBACK
     if requested is None:
         requested = DEFAULT_MAX_OUTPUT_TOKENS_FALLBACK
     return min(requested, model_ceiling)

@@ -30,6 +30,7 @@ prisma.Json = MockPrismaJson  # type: ignore[misc, assignment]
 from litellm.proxy.spend_tracking.volcengine_video_billing import (
     VOLCENGINE_VIDEO_DEFAULT_CNY_PER_USD,
     VolcengineVideoBillingManager,
+    estimate_ark_video_reservation_cost_usd,
 )
 from litellm._logging import verbose_proxy_logger
 from litellm.types.videos.main import VideoObject
@@ -1149,3 +1150,134 @@ async def test_finalize_completed_task_uses_audio_price_for_seedance_15(
     expected_provider_spend = 100000 / 1_000_000 * 16.0
     delta_call = manager._apply_async_billing_delta.call_args.kwargs
     assert delta_call["provider_delta_spend"] == pytest.approx(expected_provider_spend)
+
+
+def test_estimate_ark_video_reservation_cost_usd_720p_text_input(
+    patched_volcengine_model_cost,
+):
+    cost = estimate_ark_video_reservation_cost_usd(
+        request_body={
+            "model": "volcengine/doubao-seedance-2.0",
+            "seconds": 11,
+            "resolution": "720p",
+        },
+        model="volcengine/doubao-seedance-2.0",
+    )
+    tokens = 1248 * 704 * 24 * 11 / 1024
+    expected = tokens * 46.0 / 1_000_000 / VOLCENGINE_VIDEO_DEFAULT_CNY_PER_USD
+    assert cost == pytest.approx(expected)
+
+
+@pytest.mark.asyncio
+async def test_create_returns_reserved_spend_and_stores_provisional(
+    patched_volcengine_model_cost,
+):
+    manager = _build_manager()
+    kwargs = _build_generation_kwargs(base_model="doubao-seedance-2.0-260128")
+    kwargs["litellm_params"]["metadata"]["user_api_key_budget_reservation"] = {
+        "reserved_cost": 1.25,
+        "finalized": False,
+    }
+    response = VideoObject(
+        id="video_reserved_hold",
+        object="video",
+        status="queued",
+        model="ep-20260402174450-9qflb",
+        seconds="11",
+        usage={"duration_seconds": 11.0},
+    )
+
+    overridden_cost = await manager.handle_success_event(
+        kwargs=kwargs,
+        completion_response=response,
+    )
+
+    assert overridden_cost == pytest.approx(1.25)
+    upsert_data = manager.prisma_client.db.litellm_videotasktable.upsert.call_args.kwargs[
+        "data"
+    ]["create"]
+    assert upsert_data["spend"] == pytest.approx(1.25)
+
+
+@pytest.mark.asyncio
+async def test_finalize_settles_delta_from_provisional_reservation(
+    patched_volcengine_model_cost,
+):
+    manager = _build_manager()
+    manager._apply_async_billing_delta = AsyncMock()
+    manager._upsert_final_spend_log = AsyncMock()
+    manager.prisma_client.db.litellm_videotasktable.update_many.return_value = 1
+
+    task = SimpleNamespace(
+        video_id="video_settle_delta",
+        billing_state="pending",
+        price_per_million_tokens=46.0,
+        pricing_currency="CNY",
+        spend=1.0,  # provisional reservation already held
+        prompt_tokens=0,
+        completion_tokens=0,
+        created_at=datetime.now(timezone.utc),
+        api_key="hashed-key-123",
+        user="user-1",
+        team_id="team-1",
+        organization_id="org-1",
+        end_user="end-user-1",
+        model="seedance-2-video",
+        model_group="seedance-2-video",
+        model_id="deployment-123",
+        request_tags=["video-billing"],
+        custom_llm_provider="volcengine",
+        pricing_model="volcengine/doubao-seedance-2.0",
+        metadata={},
+    )
+    video_response = VideoObject(
+        id=task.video_id,
+        object="video",
+        status="completed",
+        completed_at=1775549339,
+        model="ep-20260402174450-9qflb",
+        seconds="11",
+        usage={
+            "total_tokens": 238500,
+            "completion_tokens": 238500,
+            "duration_seconds": 11.0,
+        },
+    )
+
+    await manager._finalize_completed_task(task=task, video_response=video_response)
+
+    expected_final = (238500 / 1_000_000 * 46.0) / VOLCENGINE_VIDEO_DEFAULT_CNY_PER_USD
+    delta_call = manager._apply_async_billing_delta.call_args.kwargs
+    assert delta_call["delta_spend"] == pytest.approx(expected_final - 1.0)
+
+
+@pytest.mark.asyncio
+async def test_no_charge_refunds_provisional_reservation():
+    manager = _build_manager()
+    manager._apply_async_billing_delta = AsyncMock()
+    manager.prisma_client.db.litellm_videotasktable.find_unique.return_value = (
+        SimpleNamespace(
+            video_id="video_refund",
+            billing_state="pending",
+            spend=1.5,
+        )
+    )
+
+    await manager._reconcile_task_from_video_response(
+        video_id="video_refund",
+        video_response=VideoObject(
+            id="video_refund",
+            object="video",
+            status="failed",
+        ),
+    )
+
+    manager._apply_async_billing_delta.assert_awaited_once()
+    assert manager._apply_async_billing_delta.call_args.kwargs["delta_spend"] == pytest.approx(
+        -1.5
+    )
+    update_data = manager.prisma_client.db.litellm_videotasktable.update.call_args.kwargs[
+        "data"
+    ]
+    assert update_data["billing_state"] == "no_charge"
+    assert update_data["spend"] == 0.0
