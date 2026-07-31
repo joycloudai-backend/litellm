@@ -327,6 +327,207 @@ def _convert_provider_spend_to_usd(amount: float, currency: str) -> float:
     return amount
 
 
+# Token estimate for admission-time budget reservation.
+# Official Seedance formula: tokens ≈ W × H × fps × seconds / 1024.
+# Encoded dims are slightly larger than nominal labels (measured / docs).
+ARK_VIDEO_DEFAULT_DURATION_SECONDS = 12.0
+ARK_VIDEO_MAX_INPUT_DURATION_SECONDS = 15.0
+ARK_VIDEO_DEFAULT_FPS = 24.0
+_ARK_VIDEO_RESOLUTION_PIXELS = {
+    "4k": (3840, 2160),
+    "1080p": (1920, 1088),
+    "720p": (1248, 704),
+    "480p": (864, 496),
+}
+
+
+def estimate_ark_video_reservation_cost_usd(
+    request_body: dict,
+    model: str,
+    model_info: Optional[Dict[str, Any]] = None,
+) -> Optional[float]:
+    """
+    Conservative USD upper bound for BytePlus/Volcengine video create admission.
+
+    Used by budget reservation so concurrent creates cannot all slip past
+    team.max_budget before async billing lands. Over-estimate is preferred.
+    """
+    if not isinstance(request_body, dict):
+        return None
+
+    register_ark_video_pricing_models()
+    pricing_model = None
+    if isinstance(model_info, dict):
+        pricing_model = model_info.get("provider_pricing_model") or model_info.get(
+            "base_model"
+        )
+    pricing_model = str(pricing_model or model or "").strip()
+    if not pricing_model:
+        return None
+
+    pricing_entry = None
+    for candidate in _candidate_pricing_models(pricing_model):
+        entry = litellm.model_cost.get(candidate)
+        if _entry_has_video_pricing(entry):
+            pricing_entry = entry
+            break
+    if pricing_entry is None:
+        return None
+
+    duration_seconds = _request_video_duration_seconds(request_body)
+    resolution = (
+        request_body.get("resolution")
+        or request_body.get("size")
+        or (model_info or {}).get("resolution")
+    )
+    fps = _safe_float(
+        request_body.get("fps") or request_body.get("framespersecond"),
+        default=ARK_VIDEO_DEFAULT_FPS,
+    )
+    if fps <= 0:
+        fps = ARK_VIDEO_DEFAULT_FPS
+
+    width, height = _resolution_pixels_for_reservation(
+        resolution=resolution,
+        pricing_entry=pricing_entry,
+    )
+    output_tokens = width * height * fps * duration_seconds / 1024.0
+    if output_tokens <= 0:
+        return None
+
+    has_input_video = _request_has_reference_video(request_body)
+    generate_audio = _coerce_bool(request_body.get("generate_audio"))
+    try:
+        unit_price, currency = _resolve_unit_price_from_entry(
+            pricing_entry=pricing_entry,
+            has_input_video=has_input_video,
+            resolution=resolution,
+            generate_audio=generate_audio,
+        )
+    except ValueError:
+        return None
+
+    billable_seconds = duration_seconds
+    if has_input_video:
+        # Seedance 2.x bills (input + output) duration; input length unknown here.
+        billable_seconds += ARK_VIDEO_MAX_INPUT_DURATION_SECONDS
+        billable_tokens = width * height * fps * billable_seconds / 1024.0
+    else:
+        billable_tokens = output_tokens
+
+    provider_spend = unit_price * billable_tokens / 1_000_000.0
+    return _convert_provider_spend_to_usd(provider_spend, currency)
+
+
+def _request_video_duration_seconds(request_body: dict) -> float:
+    for key in ("seconds", "duration"):
+        value = _safe_float(request_body.get(key), default=0.0)
+        if value > 0:
+            return value
+    return ARK_VIDEO_DEFAULT_DURATION_SECONDS
+
+
+def _request_has_reference_video(request_body: dict) -> bool:
+    if _has_reference_video(request_body.get("content")):
+        return True
+    input_reference = request_body.get("input_reference")
+    if isinstance(input_reference, dict) and (
+        input_reference.get("video_url") or input_reference.get("type") == "video_url"
+    ):
+        return True
+    return False
+
+
+def _resolution_pixels_for_reservation(
+    resolution: Any,
+    pricing_entry: Dict[str, Any],
+) -> Tuple[int, int]:
+    tier = _resolution_tier(resolution)
+    if tier is None:
+        # Unspecified resolution: highest priced tier present on the card.
+        priced_keys = [
+            key
+            for key, value in pricing_entry.items()
+            if key.startswith(VOLCENGINE_VIDEO_OUTPUT_COST_KEY_PREFIX) and value is not None
+        ]
+        if any(key.endswith("_4k") for key in priced_keys):
+            tier = "4k"
+        elif any(key.endswith("_1080p") for key in priced_keys):
+            tier = "1080p"
+        else:
+            tier = "720p"
+    return _ARK_VIDEO_RESOLUTION_PIXELS[tier]
+
+
+def _resolution_tier(resolution: Any) -> Optional[str]:
+    if not resolution:
+        return None
+    normalized = str(resolution).strip().lower()
+    if normalized in {"4k", "2160p", "2160"} or _is_4k_resolution(normalized):
+        return "4k"
+    if normalized in {"1080p", "1080"} or _is_1080p_resolution(normalized):
+        return "1080p"
+    if normalized in {"720p", "720"}:
+        return "720p"
+    if normalized in {"480p", "480"}:
+        return "480p"
+    if "x" in normalized:
+        min_dim = _min_dimension(normalized)
+        if min_dim is None:
+            return None
+        if min_dim >= 2160:
+            return "4k"
+        if min_dim >= 1080:
+            return "1080p"
+        if min_dim >= 720:
+            return "720p"
+        return "480p"
+    return None
+
+
+def _resolve_unit_price_from_entry(
+    pricing_entry: Dict[str, Any],
+    has_input_video: bool,
+    resolution: Any = None,
+    generate_audio: bool = False,
+) -> Tuple[float, str]:
+    audio_base_keys = (
+        "volcengine_video_output_cost_per_million_tokens_without_audio",
+        "volcengine_video_output_cost_per_million_tokens_with_audio",
+    )
+    if any(pricing_entry.get(key) is not None for key in audio_base_keys):
+        base_price_key = (
+            "volcengine_video_output_cost_per_million_tokens_with_audio"
+            if generate_audio
+            else "volcengine_video_output_cost_per_million_tokens_without_audio"
+        )
+    else:
+        base_price_key = (
+            "volcengine_video_output_cost_per_million_tokens_with_input_video"
+            if has_input_video
+            else "volcengine_video_output_cost_per_million_tokens_without_input_video"
+        )
+
+    price_key = base_price_key
+    resolution_suffix = (
+        "_4k"
+        if _is_4k_resolution(resolution)
+        else "_1080p"
+        if _is_1080p_resolution(resolution)
+        else None
+    )
+    if resolution_suffix is not None:
+        resolution_price_key = f"{base_price_key}{resolution_suffix}"
+        if pricing_entry.get(resolution_price_key) is not None:
+            price_key = resolution_price_key
+
+    unit_price = pricing_entry.get(price_key)
+    if unit_price is None:
+        raise ValueError(f"Missing pricing key={price_key}")
+    pricing_currency = pricing_entry.get("provider_pricing_currency", "CNY")
+    return float(unit_price), str(pricing_currency)
+
+
 class VolcengineVideoBillingManager:
     """
     Accurate async token-based billing for Volcengine video generation.
@@ -370,17 +571,28 @@ class VolcengineVideoBillingManager:
         if not self.should_handle_success_event(kwargs):
             return None
 
-        self._force_zero_cost_response(kwargs=kwargs, completion_response=completion_response)
-
         call_type = kwargs.get("call_type")
         video_response = self._coerce_video_object(completion_response)
+        reserved_spend = 0.0
         try:
             if call_type in VOLCENGINE_VIDEO_CREATE_CALL_TYPES and video_response is not None:
+                # Return admission reservation so cost callback keeps the Redis
+                # hold and writes provisional DB spend until async settle/refund.
+                reserved_spend = self._reserved_spend_from_kwargs(kwargs)
                 await self._register_pending_video_task(
                     kwargs=kwargs,
                     completion_response=video_response,
+                    reserved_spend_usd=reserved_spend,
                 )
-            elif call_type in VOLCENGINE_VIDEO_STATUS_CALL_TYPES and video_response is not None:
+                if reserved_spend <= 0:
+                    self._force_zero_cost_response(
+                        kwargs=kwargs, completion_response=completion_response
+                    )
+                return reserved_spend
+            self._force_zero_cost_response(
+                kwargs=kwargs, completion_response=completion_response
+            )
+            if call_type in VOLCENGINE_VIDEO_STATUS_CALL_TYPES and video_response is not None:
                 await self._reconcile_task_from_video_response(
                     video_id=video_response.id or "",
                     video_response=video_response,
@@ -392,7 +604,19 @@ class VolcengineVideoBillingManager:
                 str(e),
                 traceback.format_exc(),
             )
+            self._force_zero_cost_response(
+                kwargs=kwargs, completion_response=completion_response
+            )
+            return 0.0
         return 0.0
+
+    @staticmethod
+    def _reserved_spend_from_kwargs(kwargs: dict) -> float:
+        metadata = get_litellm_metadata_from_kwargs(kwargs=kwargs)
+        reservation = metadata.get("user_api_key_budget_reservation")
+        if not isinstance(reservation, dict):
+            return 0.0
+        return max(_safe_float(reservation.get("reserved_cost"), default=0.0), 0.0)
 
     async def poll_pending_video_tasks(self) -> None:
         if self.prisma_client is None or self.llm_router is None:
@@ -522,6 +746,7 @@ class VolcengineVideoBillingManager:
         self,
         kwargs: dict,
         completion_response: VideoObject,
+        reserved_spend_usd: float = 0.0,
     ) -> None:
         video_task_table = self._get_video_task_table_model()
         if video_task_table is None:
@@ -550,6 +775,7 @@ class VolcengineVideoBillingManager:
             resolution=resolution,
             generate_audio=generate_audio,
         )
+        provisional_spend = max(_safe_float(reserved_spend_usd), 0.0)
 
         api_key_hash = self._get_api_key_hash(
             metadata=metadata,
@@ -595,6 +821,8 @@ class VolcengineVideoBillingManager:
                     "price_per_million_tokens": unit_price,
                     "has_input_video": has_input_video,
                     "provider_status": completion_response.status or "queued",
+                    # Provisional hold from budget reservation until finalize/refund.
+                    "spend": provisional_spend,
                     "duration_seconds": _safe_float(
                         usage.get("duration_seconds"),
                         default=_safe_float(completion_response.seconds, 0.0),
@@ -624,6 +852,7 @@ class VolcengineVideoBillingManager:
                     "price_per_million_tokens": unit_price,
                     "has_input_video": has_input_video,
                     "provider_status": completion_response.status or "queued",
+                    "spend": provisional_spend,
                     "duration_seconds": _safe_float(
                         usage.get("duration_seconds"),
                         default=_safe_float(completion_response.seconds, 0.0),
@@ -731,11 +960,13 @@ class VolcengineVideoBillingManager:
             return
 
         if terminal_no_charge:
+            await self._refund_reserved_spend_for_no_charge_task(task=task)
             await video_task_table.update(
                 where={"video_id": video_id},
                 data={
                     "provider_status": provider_status,
                     "billing_state": "no_charge",
+                    "spend": 0.0,
                     "completed_at": _ts_to_datetime(video_response.completed_at) or now,
                     "last_checked_at": now,
                     "next_check_at": None,
@@ -814,13 +1045,20 @@ class VolcengineVideoBillingManager:
             discount_factor=discount_factor,
             task=task,
         )
-        delta_spend = max(final_spend_usd - float(task.spend or 0.0), 0.0)
+        # task.spend may already hold the admission reservation; settle the delta
+        # (positive or negative) so Redis budget counters stay accurate.
+        provisional_spend = float(task.spend or 0.0)
+        delta_spend = final_spend_usd - provisional_spend
         provider_delta_spend = provider_final_spend
         delta_prompt_tokens = max(prompt_tokens - int(task.prompt_tokens or 0), 0)
         delta_completion_tokens = max(completion_tokens - int(task.completion_tokens or 0), 0)
 
         try:
-            if delta_spend > 0 or delta_prompt_tokens > 0 or delta_completion_tokens > 0:
+            if (
+                abs(delta_spend) > 1e-12
+                or delta_prompt_tokens > 0
+                or delta_completion_tokens > 0
+            ):
                 await self._apply_async_billing_delta(
                     task=task,
                     delta_spend=delta_spend,
@@ -874,6 +1112,19 @@ class VolcengineVideoBillingManager:
             )
             raise
 
+    async def _refund_reserved_spend_for_no_charge_task(self, task: Any) -> None:
+        reserved_spend = float(getattr(task, "spend", 0.0) or 0.0)
+        if reserved_spend <= 1e-12:
+            return
+        await self._apply_async_billing_delta(
+            task=task,
+            delta_spend=-reserved_spend,
+            provider_delta_spend=0.0,
+            delta_prompt_tokens=0,
+            delta_completion_tokens=0,
+            usage={},
+        )
+
     async def _apply_async_billing_delta(
         self,
         task: Any,
@@ -885,6 +1136,7 @@ class VolcengineVideoBillingManager:
         custom_discount_factor: Optional[float] = None,
     ) -> None:
         from litellm.proxy.proxy_server import (
+            increment_spend_counters,
             litellm_proxy_budget_name,
             update_cache,
             user_api_key_cache,
@@ -950,29 +1202,42 @@ class VolcengineVideoBillingManager:
             },
         )
 
-        await self.db_spend_update_writer.apply_async_billing_delta(
-            response_cost=delta_spend,
-            user_id=effective_user,
-            hashed_token=effective_api_key or None,
-            team_id=effective_team_id,
-            org_id=effective_org_id,
-            end_user_id=effective_end_user,
-            prisma_client=self.prisma_client,
-            user_api_key_cache=user_api_key_cache,
-            litellm_proxy_budget_name=litellm_proxy_budget_name,
-            payload=delta_payload,
-            request_tags=request_tags,
-        )
+        if abs(delta_spend) > 1e-12:
+            await self.db_spend_update_writer.apply_async_billing_delta(
+                response_cost=delta_spend,
+                user_id=effective_user,
+                hashed_token=effective_api_key or None,
+                team_id=effective_team_id,
+                org_id=effective_org_id,
+                end_user_id=effective_end_user,
+                prisma_client=self.prisma_client,
+                user_api_key_cache=user_api_key_cache,
+                litellm_proxy_budget_name=litellm_proxy_budget_name,
+                payload=delta_payload,
+                request_tags=request_tags,
+            )
 
-        await update_cache(
-            token=effective_api_key or None,
-            user_id=effective_user,
-            end_user_id=effective_end_user,
-            team_id=effective_team_id,
-            response_cost=delta_spend,
-            parent_otel_span=None,
-            tags=request_tags,
-        )
+            # Keep cross-pod budget counters in sync with async video settlement
+            # (including negative deltas that release an admission reservation).
+            await increment_spend_counters(
+                token=effective_api_key or None,
+                team_id=effective_team_id,
+                user_id=effective_user,
+                response_cost=delta_spend,
+                org_id=effective_org_id,
+                end_user_id=effective_end_user,
+                tags=request_tags,
+            )
+
+            await update_cache(
+                token=effective_api_key or None,
+                user_id=effective_user,
+                end_user_id=effective_end_user,
+                team_id=effective_team_id,
+                response_cost=delta_spend,
+                parent_otel_span=None,
+                tags=request_tags,
+            )
 
     async def _upsert_final_spend_log(
         self,

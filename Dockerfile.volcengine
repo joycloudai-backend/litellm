@@ -17,6 +17,8 @@ COPY litellm/llms/rezecyan/                     /overlay/litellm/llms/rezecyan/
 COPY litellm/_lazy_imports_registry.py          /overlay/litellm/
 COPY litellm/llms/custom_httpx/aiohttp_transport.py /overlay/litellm/llms/custom_httpx/
 COPY litellm/proxy/spend_tracking/volcengine_video_billing.py /overlay/litellm/proxy/spend_tracking/
+# video admission estimate + no shrink-to-remaining for fixed-floor costs
+COPY litellm/proxy/spend_tracking/budget_reservation.py /overlay/litellm/proxy/spend_tracking/
 COPY litellm/proxy/db/db_spend_update_writer.py /overlay/litellm/proxy/db/
 COPY litellm/proxy/hooks/proxy_track_cost_callback.py /overlay/litellm/proxy/hooks/
 COPY litellm/proxy/video_endpoints/endpoints.py /overlay/litellm/proxy/video_endpoints/
