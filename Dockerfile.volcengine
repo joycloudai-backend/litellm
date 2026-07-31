@@ -1,7 +1,7 @@
-FROM ghcr.io/berriai/litellm:v1.90.0-rc.1
+FROM ghcr.io/berriai/litellm:v1.94.0
 
-# v1.90.0 installs litellm into /app/.venv (non-editable) and ships almost no
-# source under /app/litellm. Writing patched files into /app/litellm creates a
+# Official images install litellm into /app/.venv (non-editable) and ship almost
+# no source under /app/litellm. Writing patched files into /app/litellm creates a
 # half-populated package that shadows the venv install and breaks imports, so
 # stage the customizations here and overlay them onto the installed packages.
 USER root
@@ -26,6 +26,8 @@ COPY litellm/types/videos/main.py               /overlay/litellm/types/videos/
 COPY litellm/proxy/_types.py                    /overlay/litellm/proxy/
 COPY litellm/proxy/spend_tracking/spend_tracking_utils.py /overlay/litellm/proxy/spend_tracking/
 COPY litellm/proxy/proxy_server.py              /overlay/litellm/proxy/
+# fork DB health watchdog + upstream RoutingPrismaWrapper reconnect
+COPY litellm/proxy/utils.py                     /overlay/litellm/proxy/
 COPY litellm/litellm_core_utils/litellm_logging.py /overlay/litellm/litellm_core_utils/
 COPY litellm/litellm_core_utils/get_llm_provider_logic.py /overlay/litellm/litellm_core_utils/
 COPY litellm/utils.py                           /overlay/litellm/
