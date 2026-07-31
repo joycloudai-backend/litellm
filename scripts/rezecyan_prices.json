@@ -1,79 +1,10 @@
 {
   "_comment": "Rezecyan 人民币牌价源文件（唯一维护入口）。改价/改汇率后运行 scripts/sync_rezecyan_prices.py 重新生成 model_prices_and_context_window.json 中的 rezecyan/* 条目，禁止手工散改生成的条目。汇率口径与火山视频 LITELLM_VOLCENGINE_VIDEO_CNY_PER_USD 保持同值、同批调整。",
   "cny_per_usd": 7.0,
-  "as_of": "2026-07-29",
+  "as_of": "2026-07-31",
   "source": "https://www.rezecyan.com/pricing",
   "pricing_group": "default",
   "models": {
-    "MiniMax-M2.5": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 2.1,
-      "output_cny_per_1m": 8.4,
-      "cache_read_cny_per_1m": 0.42,
-      "supports_prompt_caching": true
-    },
-    "qwen-image-2.0-pro": {
-      "mode": "image_generation",
-      "image_cny_per_image": 0.5,
-      "pricing_group": "default"
-    },
-    "qwen-image-max": {
-      "mode": "image_generation",
-      "image_cny_per_image": 0.5,
-      "pricing_group": "default"
-    },
-    "deepseek-v4-flash": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 1.0,
-      "output_cny_per_1m": 2.0,
-      "cache_read_cny_per_1m": 0.2,
-      "supports_prompt_caching": true
-    },
-    "qwen3-vl-plus": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 1.0,
-      "output_cny_per_1m": 10.0,
-      "cache_read_cny_per_1m": 0.2,
-      "cache_creation_cny_per_1m": 1.25,
-      "input_cny_per_1m_above_32k_tokens": 1.5,
-      "output_cny_per_1m_above_32k_tokens": 15.0,
-      "cache_read_cny_per_1m_above_32k_tokens": 0.3,
-      "cache_creation_cny_per_1m_above_32k_tokens": 1.87,
-      "input_cny_per_1m_above_128k_tokens": 3.0,
-      "output_cny_per_1m_above_128k_tokens": 30.0,
-      "cache_read_cny_per_1m_above_128k_tokens": 0.6,
-      "cache_creation_cny_per_1m_above_128k_tokens": 3.75,
-      "supports_prompt_caching": true
-    },
-    "glm-5": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 4.0,
-      "output_cny_per_1m": 18.0,
-      "cache_read_cny_per_1m": 0.8,
-      "input_cny_per_1m_above_32k_tokens": 6.0,
-      "output_cny_per_1m_above_32k_tokens": 22.0,
-      "cache_read_cny_per_1m_above_32k_tokens": 1.2,
-      "supports_prompt_caching": true
-    },
-    "qwen3.7-max": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 12.0,
-      "output_cny_per_1m": 36.0,
-      "cache_read_cny_per_1m": 1.2,
-      "supports_prompt_caching": true,
-      "cache_creation_cny_per_1m": 15.0
-    },
-    "qwen3.5-omni-flash": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 2.2,
-      "output_cny_per_1m": 13.3
-    },
     "qwen3.6-plus": {
       "mode": "chat",
       "pricing_group": "default",
@@ -87,31 +18,28 @@
       "cache_creation_cny_per_1m_above_256k_tokens": 10.0,
       "supports_prompt_caching": true
     },
-    "glm-5.1": {
+    "qwen3.5-flash": {
       "mode": "chat",
       "pricing_group": "default",
-      "input_cny_per_1m": 6.0,
-      "output_cny_per_1m": 24.0,
-      "cache_read_cny_per_1m": 1.2,
-      "cache_creation_cny_per_1m": 7.5,
-      "input_cny_per_1m_above_32k_tokens": 8.0,
-      "output_cny_per_1m_above_32k_tokens": 28.0,
-      "cache_read_cny_per_1m_above_32k_tokens": 1.6,
-      "cache_creation_cny_per_1m_above_32k_tokens": 10.0,
+      "input_cny_per_1m": 0.2,
+      "output_cny_per_1m": 2.0,
+      "cache_read_cny_per_1m": 0.02,
+      "cache_creation_cny_per_1m": 0.25,
+      "input_cny_per_1m_above_128k_tokens": 0.8,
+      "output_cny_per_1m_above_128k_tokens": 8.0,
+      "cache_read_cny_per_1m_above_128k_tokens": 0.08,
+      "cache_creation_cny_per_1m_above_128k_tokens": 1.0,
+      "input_cny_per_1m_above_256k_tokens": 1.2,
+      "output_cny_per_1m_above_256k_tokens": 12.0,
+      "cache_read_cny_per_1m_above_256k_tokens": 0.12,
+      "cache_creation_cny_per_1m_above_256k_tokens": 1.5,
       "supports_prompt_caching": true
     },
-    "qwen3.6-flash": {
+    "cosyvoice-v3.5-plus": {
       "mode": "chat",
       "pricing_group": "default",
-      "input_cny_per_1m": 1.2,
-      "output_cny_per_1m": 7.2,
-      "cache_read_cny_per_1m": 0.12,
-      "cache_creation_cny_per_1m": 1.5,
-      "input_cny_per_1m_above_256k_tokens": 4.8,
-      "output_cny_per_1m_above_256k_tokens": 28.8,
-      "cache_read_cny_per_1m_above_256k_tokens": 0.48,
-      "cache_creation_cny_per_1m_above_256k_tokens": 6.0,
-      "supports_prompt_caching": true
+      "input_cny_per_1m": 1.5,
+      "output_cny_per_1m": 1.5
     },
     "kimi-k2.5": {
       "mode": "chat",
@@ -122,40 +50,28 @@
       "supports_prompt_caching": true,
       "cache_creation_cny_per_1m": 5.0
     },
-    "qwen3.6-max-preview": {
+    "cosyvoice-v3-flash": {
       "mode": "chat",
       "pricing_group": "default",
-      "input_cny_per_1m": 9.0,
-      "output_cny_per_1m": 54.0,
-      "cache_read_cny_per_1m": 0.9,
-      "cache_creation_cny_per_1m": 11.25,
-      "input_cny_per_1m_above_128k_tokens": 15.0,
-      "output_cny_per_1m_above_128k_tokens": 90.0,
-      "cache_read_cny_per_1m_above_128k_tokens": 1.5,
-      "cache_creation_cny_per_1m_above_128k_tokens": 18.75,
+      "input_cny_per_1m": 1.0,
+      "output_cny_per_1m": 1.0
+    },
+    "qwen3.7-max": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 12.0,
+      "output_cny_per_1m": 36.0,
+      "cache_read_cny_per_1m": 1.2,
+      "supports_prompt_caching": true,
+      "cache_creation_cny_per_1m": 15.0
+    },
+    "deepseek-v4-pro": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 12.0,
+      "output_cny_per_1m": 24.0,
+      "cache_read_cny_per_1m": 1.0,
       "supports_prompt_caching": true
-    },
-    "qwen-image-2.0": {
-      "mode": "image_generation",
-      "image_cny_per_image": 0.2,
-      "pricing_group": "default"
-    },
-    "qwen-image-plus": {
-      "mode": "image_generation",
-      "image_cny_per_image": 0.2,
-      "pricing_group": "default"
-    },
-    "qwen3-omni-flash-2025-12-01": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 1.8,
-      "output_cny_per_1m": 6.9
-    },
-    "qwen3.5-omni-plus": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 7.0,
-      "output_cny_per_1m": 40.0
     },
     "kimi-k2.6": {
       "mode": "chat",
@@ -165,6 +81,22 @@
       "cache_read_cny_per_1m": 1.3,
       "supports_prompt_caching": true,
       "cache_creation_cny_per_1m": 8.12
+    },
+    "glm-5": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 4.0,
+      "output_cny_per_1m": 18.0,
+      "cache_read_cny_per_1m": 0.8,
+      "input_cny_per_1m_above_32k_tokens": 6.0,
+      "output_cny_per_1m_above_32k_tokens": 22.0,
+      "cache_read_cny_per_1m_above_32k_tokens": 1.2,
+      "supports_prompt_caching": true
+    },
+    "qwen-image-2.0": {
+      "mode": "image_generation",
+      "image_cny_per_image": 0.2,
+      "pricing_group": "default"
     },
     "qwen3.7-plus": {
       "mode": "chat",
@@ -185,11 +117,42 @@
       "supports_function_calling": true,
       "supports_tool_choice": true
     },
-    "qwen-mt-plus": {
+    "qwen3.5-plus": {
       "mode": "chat",
       "pricing_group": "default",
-      "input_cny_per_1m": 1.8,
-      "output_cny_per_1m": 5.4
+      "input_cny_per_1m": 0.8,
+      "output_cny_per_1m": 4.8,
+      "cache_read_cny_per_1m": 0.08,
+      "cache_creation_cny_per_1m": 1.0,
+      "input_cny_per_1m_above_128k_tokens": 2.0,
+      "output_cny_per_1m_above_128k_tokens": 12.0,
+      "cache_read_cny_per_1m_above_128k_tokens": 0.2,
+      "cache_creation_cny_per_1m_above_128k_tokens": 2.5,
+      "input_cny_per_1m_above_256k_tokens": 4.0,
+      "output_cny_per_1m_above_256k_tokens": 24.0,
+      "cache_read_cny_per_1m_above_256k_tokens": 0.4,
+      "cache_creation_cny_per_1m_above_256k_tokens": 5.0,
+      "supports_prompt_caching": true,
+      "input_cny_per_1m_above_128_tokens": 2.0,
+      "output_cny_per_1m_above_128_tokens": 12.0,
+      "cache_read_cny_per_1m_above_128_tokens": 0.2,
+      "cache_creation_cny_per_1m_above_128_tokens": 2.5
+    },
+    "MiniMax-M2.5": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 2.1,
+      "output_cny_per_1m": 8.4,
+      "cache_read_cny_per_1m": 0.42,
+      "supports_prompt_caching": true
+    },
+    "glm-5.2-fast-preview": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 16.0,
+      "output_cny_per_1m": 56.0,
+      "cache_read_cny_per_1m": 4.0,
+      "supports_prompt_caching": true
     },
     "qwen3-vl-flash": {
       "mode": "chat",
@@ -208,12 +171,53 @@
       "cache_creation_cny_per_1m_above_128k_tokens": 0.75,
       "supports_prompt_caching": true
     },
-    "deepseek-v4-pro": {
+    "cosyvoice-v3.5-flash": {
       "mode": "chat",
       "pricing_group": "default",
-      "input_cny_per_1m": 12.0,
+      "input_cny_per_1m": 0.8,
+      "output_cny_per_1m": 0.8
+    },
+    "deepseek-v4-flash": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 1.0,
+      "output_cny_per_1m": 2.0,
+      "cache_read_cny_per_1m": 0.2,
+      "supports_prompt_caching": true
+    },
+    "glm-5.1": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 6.0,
       "output_cny_per_1m": 24.0,
-      "cache_read_cny_per_1m": 1.0,
+      "cache_read_cny_per_1m": 1.2,
+      "cache_creation_cny_per_1m": 7.5,
+      "input_cny_per_1m_above_32k_tokens": 8.0,
+      "output_cny_per_1m_above_32k_tokens": 28.0,
+      "cache_read_cny_per_1m_above_32k_tokens": 1.6,
+      "cache_creation_cny_per_1m_above_32k_tokens": 10.0,
+      "supports_prompt_caching": true
+    },
+    "qwen-image-max": {
+      "mode": "image_generation",
+      "image_cny_per_image": 0.5,
+      "pricing_group": "default"
+    },
+    "qwen3-vl-plus": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 1.0,
+      "output_cny_per_1m": 10.0,
+      "cache_read_cny_per_1m": 0.2,
+      "cache_creation_cny_per_1m": 1.25,
+      "input_cny_per_1m_above_32k_tokens": 1.5,
+      "output_cny_per_1m_above_32k_tokens": 15.0,
+      "cache_read_cny_per_1m_above_32k_tokens": 0.3,
+      "cache_creation_cny_per_1m_above_32k_tokens": 1.87,
+      "input_cny_per_1m_above_128k_tokens": 3.0,
+      "output_cny_per_1m_above_128k_tokens": 30.0,
+      "cache_read_cny_per_1m_above_128k_tokens": 0.6,
+      "cache_creation_cny_per_1m_above_128k_tokens": 3.75,
       "supports_prompt_caching": true
     },
     "kimi-k2.7-code": {
@@ -225,26 +229,12 @@
       "supports_prompt_caching": true,
       "cache_creation_cny_per_1m": 8.12
     },
-    "glm-5.2-fast-preview": {
+    "qwen-vl-plus": {
       "mode": "chat",
       "pricing_group": "default",
-      "input_cny_per_1m": 16.0,
-      "output_cny_per_1m": 56.0,
-      "cache_read_cny_per_1m": 4.0,
-      "supports_prompt_caching": true
-    },
-    "qwen3.6-35b-a3b": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 1.8,
-      "output_cny_per_1m": 10.8
-    },
-    "kimi-k3": {
-      "mode": "chat",
-      "pricing_group": "default",
-      "input_cny_per_1m": 20.0,
-      "output_cny_per_1m": 100.0,
-      "cache_read_cny_per_1m": 2.0,
+      "input_cny_per_1m": 0.8,
+      "output_cny_per_1m": 2.0,
+      "cache_read_cny_per_1m": 0.16,
       "supports_prompt_caching": true
     },
     "glm-5.2": {
@@ -254,6 +244,66 @@
       "output_cny_per_1m": 28.0,
       "cache_read_cny_per_1m": 2.0,
       "supports_prompt_caching": true
+    },
+    "qwen3.6-max-preview": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 9.0,
+      "output_cny_per_1m": 54.0,
+      "cache_read_cny_per_1m": 0.9,
+      "cache_creation_cny_per_1m": 11.25,
+      "input_cny_per_1m_above_128k_tokens": 15.0,
+      "output_cny_per_1m_above_128k_tokens": 90.0,
+      "cache_read_cny_per_1m_above_128k_tokens": 1.5,
+      "cache_creation_cny_per_1m_above_128k_tokens": 18.75,
+      "supports_prompt_caching": true
+    },
+    "qwen-image-2.0-pro": {
+      "mode": "image_generation",
+      "image_cny_per_image": 0.5,
+      "pricing_group": "default"
+    },
+    "qwen-image-plus": {
+      "mode": "image_generation",
+      "image_cny_per_image": 0.2,
+      "pricing_group": "default"
+    },
+    "qwen3.5-omni-flash": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 2.2,
+      "output_cny_per_1m": 13.3
+    },
+    "qwen3.6-flash": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 1.2,
+      "output_cny_per_1m": 7.2,
+      "cache_read_cny_per_1m": 0.12,
+      "cache_creation_cny_per_1m": 1.5,
+      "input_cny_per_1m_above_256k_tokens": 4.8,
+      "output_cny_per_1m_above_256k_tokens": 28.8,
+      "cache_read_cny_per_1m_above_256k_tokens": 0.48,
+      "cache_creation_cny_per_1m_above_256k_tokens": 6.0,
+      "supports_prompt_caching": true
+    },
+    "qwen3.6-35b-a3b": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 1.8,
+      "output_cny_per_1m": 10.8
+    },
+    "qwen3.5-omni-plus": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 7.0,
+      "output_cny_per_1m": 40.0
+    },
+    "cosyvoice-v3-plus": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 2.0,
+      "output_cny_per_1m": 2.0
     }
   }
 }
