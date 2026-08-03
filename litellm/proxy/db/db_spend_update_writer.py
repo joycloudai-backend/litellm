@@ -518,17 +518,22 @@ class DBSpendUpdateWriter:
         org_id: Optional[str],
         end_user_id: Optional[str],
         prisma_client: Optional[PrismaClient],
-        user_api_key_cache: DualCache,
         litellm_proxy_budget_name: Optional[str],
         payload: SpendLogsPayload,
-        request_tags: Optional[Any],
+        user_api_key_cache: Optional[DualCache] = None,
+        request_tags: Optional[Any] = None,
     ) -> None:
         """
         Apply a post-request billing delta for async workloads such as video tasks.
 
         This reuses the standard spend update flow, while allowing the payload metadata
         to opt out of incrementing request counters on daily spend tables.
+
+        ``user_api_key_cache`` / ``request_tags`` are accepted for call-site
+        compatibility; 1.94 ``_batch_database_updates`` derives tags from
+        ``payload`` and no longer takes a cache argument.
         """
+        _ = user_api_key_cache, request_tags
         await self._batch_database_updates(
             response_cost=response_cost,
             user_id=user_id,
@@ -537,10 +542,8 @@ class DBSpendUpdateWriter:
             org_id=org_id,
             end_user_id=end_user_id,
             prisma_client=prisma_client,
-            user_api_key_cache=user_api_key_cache,
             litellm_proxy_budget_name=litellm_proxy_budget_name,
-            payload_copy=copy.deepcopy(payload),
-            request_tags=request_tags,
+            payload=payload,
         )
 
     async def _update_key_db(
