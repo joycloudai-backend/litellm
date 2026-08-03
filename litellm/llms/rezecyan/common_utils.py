@@ -8,7 +8,7 @@ import httpx
 
 from litellm.llms.base_llm.chat.transformation import BaseLLMException
 
-REZECYAN_DEFAULT_API_BASE = "https://www.rezecyan.com/v1"
+REZECYAN_DEFAULT_API_BASE = "https://api.rezecyan.com/v1"
 
 
 class RezecyanError(BaseLLMException):

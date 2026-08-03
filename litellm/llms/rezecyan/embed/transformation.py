@@ -2,7 +2,7 @@
 Transformation logic for Rezecyan's OpenAI-compatible /v1/embeddings endpoint.
 
 Endpoint
-- https://www.rezecyan.com/v1/embeddings
+- https://api.rezecyan.com/v1/embeddings
 """
 
 from typing import List, Optional, Union

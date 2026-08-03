@@ -7,7 +7,7 @@ pip install playwright && playwright install chromium
 # ali-of-pro 的 group_ratio 与弹窗分组面板只在登录后下发，未登录看到的是 default 分组价
 python3 scripts/sync_rezecyan_prices.py --login
 
-# Playwright 打开 https://www.rezecyan.com/pricing
+# Playwright 打开 https://cn.rezecyan.com/pricing
 # 只收录 enable_groups 含 ali-of-pro 的模型；写入源表并同步两份 model_prices JSON（先删旧 rezecyan/* 再写入，去重）
 python3 scripts/sync_rezecyan_prices.py --scrape
 

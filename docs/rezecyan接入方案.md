@@ -8,7 +8,7 @@
 
 接入新的模型服务提供商 Rezecyan：
 
-- Base URL：`https://www.rezecyan.com/v1`（标准 OpenAI 兼容端点）
+- Base URL：`https://api.rezecyan.com/v1`（标准 OpenAI 兼容端点）
 - 鉴权：API Key（Bearer）
 - 请求/响应：原生 OpenAI 格式；chat 响应额外携带
   `message.reasoning_content`、`usage.completion_tokens_details.reasoning_tokens`
@@ -110,7 +110,7 @@ python3 scripts/sync_rezecyan_prices.py --scrape   # 爬取 + 写入两份价格
 | LiteLLM 价格表 / 模型 `baseModel` | 表单填写 | `rezecyan/<model>`，如 `rezecyan/qwen3.7-plus` | **必须**带此前缀，erp `buildRezecyanModelRow` 会校验 |
 | 账号鉴权 | — | `authType: "api_key"` | 与 Volcano / BytePlus / DashScope 相同；**不要**走 `assume_role` |
 | 账号 API Key | 必填 | `apiKey` | |
-| 账号 API Base | **选填** | `apiBase` 可空；空则后端默认 `https://www.rezecyan.com/v1` | **与 DashScope 必填不同** |
+| 账号 API Base | **选填** | `apiBase` 可空；空则后端默认 `https://api.rezecyan.com/v1` | **与 DashScope 必填不同** |
 | 模型类型 | Text / Image / embedding / rerank | 同左 | 无 Video；Text 在 litellm 侧映射为 `chat` |
 | 价格档 / 地域后缀 | 无 | 不要在 `baseModel` 后加 `-cn/-hk/-eu` | 单一价格档 |
 
@@ -230,7 +230,7 @@ if (cloudProvider === 'Rezecyan') return 'Rezecyan'
 | `messages/zh/llmList.json`、`en/llmList.json` | `provider.rezecyan` | `Rezecyan` |
 | 同上 | `hint.baseModelRezecyan`（新建）或扩展现有 hint | 见上「无档位后缀」说明 |
 | `messages/zh/llmExclusiveModel.json`、`en/llmExclusiveModel.json` | `provider.rezecyan` | `Rezecyan` |
-| 同上 | `hint.rezecyanApiBase`（新建） | 中：`可选。留空则使用官方地址 https://www.rezecyan.com/v1`；英：`Optional. Leave empty to use https://www.rezecyan.com/v1` |
+| 同上 | `hint.rezecyanApiBase`（新建） | 中：`可选。留空则使用官方地址 https://api.rezecyan.com/v1`；英：`Optional. Leave empty to use https://api.rezecyan.com/v1` |
 | `messages/zh/regionList.json`、`en/regionList.json` | `provider.rezecyan` | `Rezecyan` |
 | `messages/zh/modelAccountProfit.json`、`en/modelAccountProfit.json` | `provider.rezecyan` | `Rezecyan`（若账单/利润筛选项吃同一套 provider） |
 | `messages/zh/common.json`、`en/common.json` | 若有 `cloudVendor` 大写枚举习惯 | 视区域管理是否复用；优先保证 `regionList.provider.rezecyan` |

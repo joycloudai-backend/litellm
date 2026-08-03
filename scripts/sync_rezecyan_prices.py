@@ -33,8 +33,8 @@ TARGET_FILES = [
     REPO_ROOT / "litellm" / "model_prices_and_context_window_backup.json",
 ]
 
-PRICING_URL = "https://www.rezecyan.com/pricing"
-LOGIN_URL = "https://www.rezecyan.com/login"
+PRICING_URL = "https://cn.rezecyan.com/pricing"
+LOGIN_URL = "https://cn.rezecyan.com/login"
 TARGET_GROUP = "default"
 # default 分组无需登录即可获取；登录态文件保留供未来其他分组使用
 STATE_FILE = Path.home() / ".cache" / "rezecyan_state.json"

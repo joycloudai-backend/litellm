@@ -2,7 +2,7 @@
 Transformation logic for Rezecyan's /v1/rerank API.
 
 Endpoint
-- https://www.rezecyan.com/v1/rerank
+- https://api.rezecyan.com/v1/rerank
 
 Request fields: model, query, documents, top_n, return_documents.
 Response: results[].index, results[].relevance_score, optionally
