@@ -8076,6 +8076,12 @@ class ProviderConfigManager:
             )
 
             return DeepSeekAnthropicMessagesConfig()
+        elif litellm.LlmProviders.REZECYAN == provider:
+            from litellm.llms.rezecyan.messages.transformation import (
+                RezecyanAnthropicMessagesConfig,
+            )
+
+            return RezecyanAnthropicMessagesConfig()
         elif litellm.LlmProviders.TENCENT == provider:
             from litellm.llms.tencent.messages.transformation import (
                 TencentAnthropicMessagesConfig,
