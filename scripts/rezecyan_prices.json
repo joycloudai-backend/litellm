@@ -73,6 +73,14 @@
       "cache_read_cny_per_1m": 1.0,
       "supports_prompt_caching": true
     },
+    "deepseek-v4-pro-0813": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 9.0,
+      "output_cny_per_1m": 27.0,
+      "cache_read_cny_per_1m": 0.9,
+      "supports_prompt_caching": true
+    },
     "kimi-k2.6": {
       "mode": "chat",
       "pricing_group": "default",
@@ -254,6 +262,14 @@
       "supports_prompt_caching": true
     },
     "glm-5.2": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 8.0,
+      "output_cny_per_1m": 28.0,
+      "cache_read_cny_per_1m": 2.0,
+      "supports_prompt_caching": true
+    },
+    "glm-5.3": {
       "mode": "chat",
       "pricing_group": "default",
       "input_cny_per_1m": 8.0,

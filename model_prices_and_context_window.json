@@ -47173,6 +47173,23 @@
         "source": "https://cn.rezecyan.com/pricing",
         "supports_prompt_caching": true
     },
+    "rezecyan/deepseek-v4-pro-0813": {
+        "cache_read_input_token_cost": 1.28571e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.285714e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 0.9,
+            "input_cny_per_1m": 9.0,
+            "output_cny_per_1m": 27.0
+        },
+        "output_cost_per_token": 3.857143e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
     "rezecyan/glm-5": {
         "cache_read_input_token_cost": 1.14286e-07,
         "cache_read_input_token_cost_above_32k_tokens": 1.71429e-07,
@@ -47252,6 +47269,23 @@
             "output_cny_per_1m": 56.0
         },
         "output_cost_per_token": 8e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/glm-5.3": {
+        "cache_read_input_token_cost": 2.85714e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.142857e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 2.0,
+            "input_cny_per_1m": 8.0,
+            "output_cny_per_1m": 28.0
+        },
+        "output_cost_per_token": 4e-06,
         "price_as_of": "2026-07-31",
         "provider_pricing_currency": "USD",
         "source": "https://cn.rezecyan.com/pricing",
