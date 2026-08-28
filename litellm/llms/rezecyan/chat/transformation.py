@@ -3,15 +3,18 @@ Translates from OpenAI's `/v1/chat/completions` to Rezecyan's `/v1/chat/completi
 
 Rezecyan is an OpenAI-compatible aggregator (hosts Qwen / DeepSeek / third-party
 models behind a single endpoint). Responses may carry `message.reasoning_content`
-and `usage.completion_tokens_details.reasoning_tokens`, both of which are parsed
-natively by the OpenAI transformation.
+and `usage.completion_tokens_details.reasoning_tokens`. Thinking models that
+set ``text_tokens == completion_tokens`` while also reporting reasoning as a
+subset are clamped before LiteLLM's generic cost calculator, so reasoning is
+not billed twice. Consistent OpenAI-style breakdowns are left unchanged.
 """
 
-from typing import List, Optional, Tuple, cast
+from typing import Any, List, Optional, Tuple, cast
 
 import litellm
 from litellm.secret_managers.main import get_secret_str
 from litellm.types.llms.openai import AllMessageValues
+from litellm.types.utils import ModelResponse
 
 from ...openai.chat.gpt_transformation import OpenAIGPTConfig
 from ..common_utils import REZECYAN_DEFAULT_API_BASE
@@ -28,6 +31,70 @@ class RezecyanChatConfig(OpenAIGPTConfig):
         )  # type: ignore
         dynamic_api_key = api_key or get_secret_str("REZECYAN_API_KEY")
         return api_base, dynamic_api_key
+
+    @staticmethod
+    def _clamp_overcounted_reasoning_text_tokens(usage: Any) -> None:
+        """Fix Reze thinking-model usage so LiteLLM does not double-bill reasoning.
+
+        Some Reze models report ``text_tokens == completion_tokens`` while
+        ``reasoning_tokens`` is already a subset of ``completion_tokens``
+        (``total_tokens == prompt + completion``). LiteLLM's generic cost
+        calculator then charges ``text + reasoning`` at the output rate.
+
+        If ``text + reasoning > completion``, rewrite
+        ``text_tokens = max(0, completion_tokens - reasoning_tokens)``.
+        Leaves consistent OpenAI-style breakdowns untouched. In-place.
+        """
+        if usage is None:
+            return
+
+        if isinstance(usage, dict):
+            details = usage.get("completion_tokens_details")
+        else:
+            details = getattr(usage, "completion_tokens_details", None)
+        if details is None:
+            return
+
+        def _field(obj: Any, key: str, default: Any = None) -> Any:
+            if isinstance(obj, dict):
+                return obj.get(key, default)
+            return getattr(obj, key, default)
+
+        try:
+            reasoning_tokens = int(_field(details, "reasoning_tokens", 0) or 0)
+            text_raw = _field(details, "text_tokens", None)
+            if text_raw is None:
+                return
+            text_tokens = int(text_raw)
+            completion_tokens = int(_field(usage, "completion_tokens", 0) or 0)
+        except (TypeError, ValueError):
+            return
+
+        if reasoning_tokens <= 0 or text_tokens + reasoning_tokens <= completion_tokens:
+            return
+
+        new_text = max(0, completion_tokens - reasoning_tokens)
+        if isinstance(details, dict):
+            details["text_tokens"] = new_text
+        else:
+            details.text_tokens = new_text
+
+    def transform_parsed_response_dict(self, parsed_response: dict) -> dict:
+        parsed_response = super().transform_parsed_response_dict(parsed_response)
+        if isinstance(parsed_response, dict):
+            self._clamp_overcounted_reasoning_text_tokens(parsed_response.get("usage"))
+        return parsed_response
+
+    def transform_response(self, *args: Any, **kwargs: Any) -> ModelResponse:
+        response = super().transform_response(*args, **kwargs)
+        self._clamp_overcounted_reasoning_text_tokens(getattr(response, "usage", None))
+        return response
+
+    def apply_assembled_streaming_response_metadata(
+        self, response: ModelResponse, chunks: List[Any]
+    ) -> None:
+        super().apply_assembled_streaming_response_metadata(response, chunks)
+        self._clamp_overcounted_reasoning_text_tokens(getattr(response, "usage", None))
 
     def get_complete_url(
         self,

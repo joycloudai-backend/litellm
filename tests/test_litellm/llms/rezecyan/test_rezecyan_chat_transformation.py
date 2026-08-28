@@ -176,3 +176,36 @@ class TestRezecyanPricing:
             completion_response=resp, model="rezecyan/qwen3.7-plus"
         )
         assert cost_usd * 7.2 == pytest.approx(0.003438, rel=1e-3)
+
+
+class TestRezecyanUsageClamp:
+    def _overcounted_usage_dict(self):
+        return {
+            "prompt_tokens": 66,
+            "completion_tokens": 25,
+            "total_tokens": 91,
+            "completion_tokens_details": {
+                "text_tokens": 25,
+                "reasoning_tokens": 21,
+            },
+        }
+
+    def test_clamps_text_when_text_plus_reasoning_exceeds_completion(self):
+        usage = self._overcounted_usage_dict()
+        RezecyanChatConfig._clamp_overcounted_reasoning_text_tokens(usage)
+        assert usage["completion_tokens_details"]["text_tokens"] == 4
+        assert usage["completion_tokens_details"]["reasoning_tokens"] == 21
+        assert usage["completion_tokens"] == 25
+
+    def test_leaves_consistent_breakdown_unchanged(self):
+        usage = {
+            "prompt_tokens": 66,
+            "completion_tokens": 25,
+            "total_tokens": 91,
+            "completion_tokens_details": {
+                "text_tokens": 4,
+                "reasoning_tokens": 21,
+            },
+        }
+        RezecyanChatConfig._clamp_overcounted_reasoning_text_tokens(usage)
+        assert usage["completion_tokens_details"]["text_tokens"] == 4

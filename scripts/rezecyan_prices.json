@@ -345,6 +345,15 @@
       "cache_read_cny_per_1m": 1.5,
       "supports_prompt_caching": true,
       "cache_creation_cny_per_1m": 15.0
+    },
+    "qwen3.8-flash": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 1.0,
+      "output_cny_per_1m": 3.0,
+      "cache_read_cny_per_1m": 0.1,
+      "supports_prompt_caching": true,
+      "cache_creation_cny_per_1m": 1.25
     }
   }
 }
