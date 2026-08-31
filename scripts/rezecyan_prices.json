@@ -349,8 +349,8 @@
     "qwen3.8-flash": {
       "mode": "chat",
       "pricing_group": "default",
-      "input_cny_per_1m": 1.0,
-      "output_cny_per_1m": 3.0,
+      "input_cny_per_1m": 0.8,
+      "output_cny_per_1m": 2.7,
       "cache_read_cny_per_1m": 0.1,
       "supports_prompt_caching": true,
       "cache_creation_cny_per_1m": 1.25
