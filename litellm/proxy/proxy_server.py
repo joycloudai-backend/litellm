@@ -911,6 +911,7 @@ def cleanup_router_config_variables():
     health_check_interval = None
     health_check_concurrency = None
     prisma_client = None
+    volcengine_video_billing_manager = None
 
 
 async def _flush_spend_logs_queue_on_shutdown() -> None:
@@ -9725,6 +9726,40 @@ class ProxyStartupEvent:
                     "Checking responses cost for LiteLLM Managed Files is an Enterprise Feature. Skipping..."
                 )
 
+        try:
+            from litellm.proxy.spend_tracking.volcengine_video_billing import (
+                register_ark_video_pricing_models,
+            )
+
+            register_ark_video_pricing_models()
+        except Exception as e:
+            verbose_proxy_logger.warning("Failed to register Ark video pricing models: %s", e)
+
+        if llm_router is not None and prisma_client is not None:
+            try:
+                from litellm.proxy.spend_tracking.volcengine_video_billing import (
+                    VolcengineVideoBillingManager,
+                )
+
+                global volcengine_video_billing_manager
+                volcengine_video_billing_manager = VolcengineVideoBillingManager(
+                    prisma_client=prisma_client,
+                    llm_router=llm_router,
+                    db_spend_update_writer=proxy_logging_obj.db_spend_update_writer,
+                    proxy_logging_obj=proxy_logging_obj,
+                )
+                scheduler.add_job(
+                    volcengine_video_billing_manager.poll_pending_video_tasks,
+                    "interval",
+                    seconds=max(15, min(proxy_batch_polling_interval, 60)),
+                    id="volcengine_video_billing_job",
+                    replace_existing=True,
+                    misfire_grace_time=APSCHEDULER_MISFIRE_GRACE_TIME,
+                )
+                verbose_proxy_logger.info("Volcengine video billing job scheduled successfully")
+            except Exception as e:
+                verbose_proxy_logger.warning("Failed to setup Volcengine video billing job: %s", e)
+
         # MEMORY LEAK FIX: Start scheduler with paused=False to avoid backlog processing
         # Do NOT reset job times to "now" as this can trigger the memory leak
         # The misfire_grace_time and coalesce settings will handle any missed runs properly
@@ -13145,11 +13180,43 @@ def _enrich_model_info_with_litellm_data(
     for k, v in litellm_model_info.items():
         if k not in model_info:
             model_info[k] = v
+    _merge_ark_video_pricing_into_model_info(model=model, model_info=model_info)
     model["model_info"] = model_info
     # don't return the api key / vertex credentials
     # don't return the llm credentials
     model = remove_sensitive_info_from_deployment(model, excluded_keys={"litellm_credential_name"})
     return model
+
+
+def _merge_ark_video_pricing_into_model_info(
+    model: dict[str, Any],
+    model_info: dict[str, Any],
+) -> None:
+    """
+    Volcengine/BytePlus video pricing lives in code (not the static cost map) and
+    is keyed by dotted/versionless ids (e.g. "volcengine/doubao-seedance-2.0").
+    Resolve it via provider_pricing_model/base_model so /v1/model/info exposes the
+    volcengine_video_output_cost_per_million_tokens_* fields to the dashboard.
+    """
+    from litellm.proxy.spend_tracking.volcengine_video_billing import (
+        ARK_VIDEO_PROVIDERS,
+        get_ark_video_pricing_entry,
+    )
+
+    litellm_params = model.get("litellm_params", {}) or {}
+    raw_model = str(litellm_params.get("model", "") or "")
+    provider = (
+        raw_model.split("/", 1)[0] if "/" in raw_model else litellm_params.get("custom_llm_provider")
+    )
+    if provider not in ARK_VIDEO_PROVIDERS:
+        return
+
+    pricing_entry = get_ark_video_pricing_entry(model_info)
+    if not pricing_entry:
+        return
+    for k, v in pricing_entry.items():
+        if k not in model_info:
+            model_info[k] = v
 
 
 async def _get_caller_byok_team_scope(
@@ -14611,6 +14678,7 @@ def _get_proxy_model_info(model: dict) -> dict:
     for k, v in litellm_model_info.items():
         if k not in model_info:
             model_info[k] = v
+    _merge_ark_video_pricing_into_model_info(model=model, model_info=model_info)
     model["model_info"] = model_info
     # don't return the llm credentials
     model = remove_sensitive_info_from_deployment(deployment_dict=model, excluded_keys={"litellm_credential_name"})

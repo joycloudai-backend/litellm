@@ -1,0 +1,59 @@
+FROM ghcr.io/berriai/litellm:v1.101.0-rc.1
+
+# Official images install litellm into /app/.venv (non-editable) and ship almost
+# no source under /app/litellm. Writing patched files into /app/litellm creates a
+# half-populated package that shadows the venv install and breaks imports, so
+# stage the customizations here and overlay them onto the installed packages.
+USER root
+
+# JoyCloud providers (official 1.101 already has dashscope + volcengine chat)
+COPY litellm/llms/volcengine/videos/            /overlay/litellm/llms/volcengine/videos/
+COPY litellm/llms/byteplus/                     /overlay/litellm/llms/byteplus/
+COPY litellm/llms/rezecyan/                     /overlay/litellm/llms/rezecyan/
+COPY litellm/_lazy_imports_registry.py          /overlay/litellm/
+COPY litellm/litellm_core_utils/get_llm_provider_logic.py /overlay/litellm/litellm_core_utils/
+COPY litellm/utils.py                           /overlay/litellm/
+COPY litellm/__init__.py                        /overlay/litellm/
+COPY litellm/types/utils.py                     /overlay/litellm/types/
+COPY litellm/constants.py                       /overlay/litellm/
+
+# budget_group: declare + shared spend pool (do not overwrite 1.101 router extras)
+COPY litellm/types/router.py                    /overlay/litellm/types/
+COPY litellm/router_strategy/budget_limiter.py  /overlay/litellm/router_strategy/
+
+# video/spend overlay aligned to 1.101 spend APIs
+COPY litellm/proxy/spend_tracking/volcengine_video_billing.py /overlay/litellm/proxy/spend_tracking/
+COPY litellm/proxy/spend_tracking/budget_reservation.py /overlay/litellm/proxy/spend_tracking/
+COPY litellm/proxy/spend_tracking/spend_tracking_utils.py /overlay/litellm/proxy/spend_tracking/
+COPY litellm/proxy/db/db_spend_update_writer.py /overlay/litellm/proxy/db/
+COPY litellm/proxy/hooks/proxy_track_cost_callback.py /overlay/litellm/proxy/hooks/
+COPY litellm/proxy/video_endpoints/endpoints.py /overlay/litellm/proxy/video_endpoints/
+COPY litellm/proxy/video_endpoints/utils.py     /overlay/litellm/proxy/video_endpoints/
+COPY litellm/videos/main.py                     /overlay/litellm/videos/
+COPY litellm/types/videos/main.py               /overlay/litellm/types/videos/
+COPY litellm/proxy/_types.py                    /overlay/litellm/proxy/
+
+# watchdog already in 1.101; this overlay only adds video billing hooks
+COPY litellm/proxy/proxy_server.py              /overlay/litellm/proxy/
+COPY litellm/litellm_core_utils/litellm_logging.py /overlay/litellm/litellm_core_utils/
+
+COPY litellm/proxy/public_endpoints/provider_create_fields.json /overlay/litellm/proxy/public_endpoints/
+COPY litellm/proxy/schema.prisma                /overlay/litellm/proxy/
+COPY model_prices_and_context_window.json       /overlay/
+COPY provider_endpoints_support.json            /overlay/
+COPY schema.prisma                              /overlay/
+COPY litellm-proxy-extras/litellm_proxy_extras/migrations/20260909120000_add_video_task_billing_table/ /overlay/litellm_proxy_extras/migrations/20260909120000_add_video_task_billing_table/
+COPY litellm-proxy-extras/litellm_proxy_extras/schema.prisma /overlay/litellm_proxy_extras/
+
+RUN set -eux; \
+    SITE="$(python -c 'import sysconfig, os; print(os.path.join(sysconfig.get_paths()["purelib"], "litellm"))')"; \
+    EXTRAS="$(python -c 'import sysconfig, os; print(os.path.join(sysconfig.get_paths()["purelib"], "litellm_proxy_extras"))')"; \
+    test -f "$SITE/__init__.py"; \
+    test -d "$EXTRAS"; \
+    cp -a /overlay/litellm/. "$SITE"/; \
+    cp -a /overlay/litellm_proxy_extras/. "$EXTRAS"/; \
+    cp -f /overlay/model_prices_and_context_window.json "$SITE/model_prices_and_context_window_backup.json"; \
+    cp -f /overlay/provider_endpoints_support.json "$SITE/provider_endpoints_support_backup.json"; \
+    cp -f /overlay/schema.prisma /app/schema.prisma; \
+    rm -rf /overlay; \
+    prisma generate --schema=/app/schema.prisma

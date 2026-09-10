@@ -332,6 +332,8 @@ class GenericLiteLLMParams(CredentialLiteLLMParams, CustomPricingLiteLLMParams):
     # Deployment budgets
     max_budget: float | None = None
     budget_duration: str | None = None
+    # deployments sharing a budget_group share one spend pool (see RouterBudgetLimiting)
+    budget_group: str | None = None
     keepalive_seconds: float | None = None
     # keepalive_seconds is operator-only by default: a client's request-level
     # value is ignored unless the deployment opts in here. Prevents a client
@@ -526,6 +528,7 @@ class LiteLLMParamsTypedDict(TypedDict, total=False):
     # deployment budgets
     max_budget: float | None
     budget_duration: str | None
+    budget_group: str | None
     keepalive_seconds: float | None
     allow_client_keepalive_override: bool | None
 

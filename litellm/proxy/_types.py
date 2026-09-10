@@ -3707,6 +3707,10 @@ class SpendLogsMetadata(TypedDict):
     autorouter_savings: ReadOnly[float | None]  # stamped by the logging payload; None = not auto-routed
     litellm_gateway_injected_cache: ReadOnly[str | None]
     router_metadata: ReadOnly[SpendLogsRouterMetadata | None]  # None = deployment not flagged internal_router_model
+    video_billing_task_id: str | None
+    async_billing_only: bool | None
+    provider_spend_currency: str | None
+    provider_spend_amount: float | None
 
 
 class SpendLogsPayload(TypedDict):

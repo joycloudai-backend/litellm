@@ -317,10 +317,10 @@ def video_content(
         litellm_call_id: Final[str | None] = kwargs.get("litellm_call_id", None)
         _is_async: Final = kwargs.pop("async_call", False) is True
 
+        decoded_video_id = decode_video_id_with_provider(video_id)
         # Try to decode provider from video_id if not explicitly provided
         if custom_llm_provider is None:
-            decoded: Final = decode_video_id_with_provider(video_id)
-            custom_llm_provider = decoded.get("custom_llm_provider") or "openai"
+            custom_llm_provider = decoded_video_id.get("custom_llm_provider") or "openai"
 
         # get llm provider logic
         litellm_params: Final = GenericLiteLLMParams(**kwargs)
@@ -335,16 +335,19 @@ def video_content(
             raise ValueError(f"video support download is not supported for {custom_llm_provider}")
 
         local_vars.update(kwargs)
+        model_for_logging = kwargs.get("model") or decoded_video_id.get("model_id") or ""
         # For video content download, we don't need complex optional parameter handling
         # Just pass the basic parameters that are relevant for content download
         video_content_request_params: Final[dict] = {
             "video_id": video_id,
         }
+        if model_for_logging:
+            video_content_request_params["model"] = model_for_logging
 
         # Pre Call logging
         litellm_logging_obj.update_from_kwargs(
             kwargs=kwargs,
-            model="",
+            model=model_for_logging,
             user=kwargs.get("user"),
             optional_params=dict(video_content_request_params),
             litellm_params={
@@ -1019,10 +1022,10 @@ def video_status(
             response: Final = VideoObject(**mock_response)
             return response
 
+        decoded_video_id = decode_video_id_with_provider(video_id)
         # Try to decode provider from video_id if not explicitly provided
         if custom_llm_provider is None:
-            decoded: Final = decode_video_id_with_provider(video_id)
-            custom_llm_provider = decoded.get("custom_llm_provider") or "openai"
+            custom_llm_provider = decoded_video_id.get("custom_llm_provider") or "openai"
 
         # get llm provider logic
         litellm_params: Final = GenericLiteLLMParams(**kwargs)
@@ -1037,15 +1040,18 @@ def video_status(
             raise ValueError(f"video status is not supported for {custom_llm_provider}")
 
         local_vars.update(kwargs)
+        model_for_logging = kwargs.get("model") or decoded_video_id.get("model_id") or ""
         # For video status, we need the video_id
         video_status_request_params: Final[dict] = {
             "video_id": video_id,
         }
+        if model_for_logging:
+            video_status_request_params["model"] = model_for_logging
 
         # Pre Call logging
         litellm_logging_obj.update_from_kwargs(
             kwargs=kwargs,
-            model="",
+            model=model_for_logging,
             user=kwargs.get("user"),
             optional_params=dict(video_status_request_params),
             litellm_params={

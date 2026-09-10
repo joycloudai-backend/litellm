@@ -651,6 +651,45 @@ class DBSpendUpdateWriter:
                 traceback.format_exc(),
             )
 
+    async def apply_async_billing_delta(
+        self,
+        *,
+        response_cost: float | None,
+        user_id: str | None,
+        hashed_token: str | None,
+        team_id: str | None,
+        org_id: str | None,
+        end_user_id: str | None,
+        prisma_client: PrismaClient | None,
+        litellm_proxy_budget_name: str | None,
+        payload: SpendLogsPayload,
+        user_api_key_cache: Any = None,
+        request_tags: Any = None,
+    ) -> None:
+        """
+        Apply a post-request billing delta for async workloads such as video tasks.
+
+        Reuses the standard spend update flow. Payload metadata may set
+        ``async_billing_only`` so daily tables do not increment request counters.
+
+        ``user_api_key_cache`` / ``request_tags`` are accepted for call-site
+        compatibility; 1.101 ``_batch_database_updates`` derives tags from
+        ``payload`` and no longer takes a cache argument.
+        """
+        _ = user_api_key_cache, request_tags
+        await self._batch_database_updates(
+            response_cost=response_cost,
+            user_id=user_id,
+            hashed_token=hashed_token,
+            team_id=team_id,
+            org_id=org_id,
+            end_user_id=end_user_id,
+            prisma_client=prisma_client,
+            litellm_proxy_budget_name=litellm_proxy_budget_name,
+            payload=payload,
+            request_model_access_groups=(),
+        )
+
     async def _update_key_db(
         self,
         response_cost: float | None,
@@ -2053,6 +2092,8 @@ class DBSpendUpdateWriter:
                 endpoint = ROUTE_ENDPOINT_MAPPING.get(call_type, None)
 
             is_internal_call: Final = bool(_metadata.get(INTERNAL_CALL_ORIGIN_METADATA_KEY))
+            async_billing_only: Final = bool(_metadata.get("async_billing_only", False))
+            skip_request_counts: Final = is_internal_call or async_billing_only
             cache_read_input_tokens: Final = extract_cache_read_tokens(usage_obj)
             compression_saved_tokens: Final = extract_compression_saved_tokens(_metadata)
             savings_spend: Final = compute_savings_spend(
@@ -2084,9 +2125,9 @@ class DBSpendUpdateWriter:
                 # requests the caller made: counting them inflates request-volume
                 # readers, and an auto-router savings figure computed on a shadow
                 # duplicate credits savings for traffic no user sent.
-                api_requests=0 if is_internal_call else 1,
-                successful_requests=1 if not is_internal_call and request_status == "success" else 0,
-                failed_requests=1 if not is_internal_call and request_status != "success" else 0,
+                api_requests=0 if skip_request_counts else 1,
+                successful_requests=1 if not skip_request_counts and request_status == "success" else 0,
+                failed_requests=1 if not skip_request_counts and request_status != "success" else 0,
                 cache_read_input_tokens=cache_read_input_tokens,
                 cache_creation_input_tokens=extract_cache_creation_tokens(usage_obj),
                 compression_saved_tokens=compression_saved_tokens,

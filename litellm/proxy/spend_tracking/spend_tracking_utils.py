@@ -177,6 +177,10 @@ def _get_spend_logs_metadata(
             litellm_gateway_injected_cache=None,
             litellm_call_id=litellm_call_id,
             router_metadata=router_metadata,
+            video_billing_task_id=None,
+            async_billing_only=None,
+            provider_spend_currency=None,
+            provider_spend_amount=None,
         )
     verbose_proxy_logger.debug(
         "getting payload for SpendLogs, available keys in metadata: " + str(list(metadata.keys()))

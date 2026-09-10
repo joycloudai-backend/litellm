@@ -310,6 +310,7 @@ LLM_CONFIG_NAMES: Final = (
     "GigaChatConfig",
     "GigaChatEmbeddingConfig",
     "DashScopeChatConfig",
+    "RezecyanChatConfig",
     "QwenCloudChatConfig",
     "QwenAIPlatformChatConfig",
     "ModelScopeChatConfig",
@@ -1173,6 +1174,10 @@ _LLM_CONFIGS_IMPORT_MAP: Final = {
     "DashScopeChatConfig": (
         ".llms.dashscope.chat.transformation",
         "DashScopeChatConfig",
+    ),
+    "RezecyanChatConfig": (
+        ".llms.rezecyan.chat.transformation",
+        "RezecyanChatConfig",
     ),
     "QwenCloudChatConfig": (
         ".llms.dashscope.qwencloud",

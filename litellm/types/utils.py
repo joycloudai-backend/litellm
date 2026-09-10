@@ -3752,6 +3752,7 @@ all_litellm_params = (
         "attempted_targets",
         "max_budget",
         "budget_duration",
+        "budget_group",
         "use_in_pass_through",
         "merge_reasoning_content_in_choices",
         "litellm_credential_name",
@@ -3879,9 +3880,11 @@ class LlmProviders(str, Enum):
     CEREBRAS = "cerebras"
     AI21_CHAT = "ai21_chat"
     VOLCENGINE = "volcengine"
+    BYTEPLUS = "byteplus"
     CODESTRAL = "codestral"
     TEXT_COMPLETION_CODESTRAL = "text-completion-codestral"
     DASHSCOPE = "dashscope"
+    REZECYAN = "rezecyan"
     QWENCLOUD = "qwencloud"
     QWEN_AI_PLATFORM = "qwen_ai_platform"
     MODELSCOPE = "modelscope"

@@ -2,7 +2,10 @@ from typing import Any, Final
 
 import orjson
 
-from litellm.types.videos.utils import encode_character_id_with_provider
+from litellm.types.videos.utils import (
+    encode_character_id_with_provider,
+    encode_video_id_with_provider,
+)
 
 
 def extract_model_from_target_model_names(target_model_names: Any) -> str | None:
@@ -63,4 +66,37 @@ def encode_character_id_in_response(response: Any, custom_llm_provider: str, mod
             provider=custom_llm_provider,
             model_id=model_id,
         )
+    return response
+
+
+def encode_video_id_in_response(response: Any, custom_llm_provider: str, model_id: str | None) -> Any:
+    if isinstance(response, dict) and response.get("id"):
+        response["id"] = encode_video_id_with_provider(
+            video_id=response["id"],
+            provider=custom_llm_provider,
+            model_id=model_id,
+        )
+        return response
+
+    video_id: Final = getattr(response, "id", None)
+    if isinstance(video_id, str) and video_id:
+        response.id = encode_video_id_with_provider(
+            video_id=video_id,
+            provider=custom_llm_provider,
+            model_id=model_id,
+        )
+    return response
+
+
+def preserve_video_id_in_response(response: Any, requested_video_id: str) -> Any:
+    if not requested_video_id:
+        return response
+
+    if isinstance(response, dict) and response.get("id"):
+        response["id"] = requested_video_id
+        return response
+
+    video_id: Final = getattr(response, "id", None)
+    if isinstance(video_id, str) and video_id:
+        response.id = requested_video_id
     return response

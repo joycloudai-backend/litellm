@@ -344,7 +344,7 @@ enable_azure_ad_token_refresh: Optional[bool] = False
 # Proxy Authentication - auto-obtain/refresh OAuth2/JWT tokens for LiteLLM Proxy
 proxy_auth: Optional[Any] = None
 ### DEFAULT AZURE API VERSION ###
-AZURE_DEFAULT_API_VERSION = "2025-02-01-preview"  # this is updated to the latest
+AZURE_DEFAULT_API_VERSION = "2025-03-01-preview"  # GPT-6 / Azure Responses need this or newer
 ### DEFAULT WATSONX API VERSION ###
 WATSONX_DEFAULT_API_VERSION = "2024-03-13"
 ### COHERE EMBEDDINGS DEFAULT TYPE ###
@@ -664,6 +664,8 @@ aiml_models: Set = set()
 deepgram_models: Set = set()
 elevenlabs_models: Set = set()
 dashscope_models: Set = set()
+rezecyan_models: Set = set()
+byteplus_models: Set = set()
 qwencloud_models: Set = set()
 qwen_ai_platform_models: Set = set()
 moonshot_models: Set = set()
@@ -916,6 +918,10 @@ def _populate_provider_model_sets(model_cost_map: Dict) -> None:
             heroku_models.add(key)
         elif value.get("litellm_provider") == "dashscope":
             dashscope_models.add(key)
+        elif value.get("litellm_provider") == "rezecyan":
+            rezecyan_models.add(key)
+        elif value.get("litellm_provider") == "byteplus":
+            byteplus_models.add(key)
         elif value.get("litellm_provider") == "qwencloud":
             qwencloud_models.add(key)
         elif value.get("litellm_provider") == "qwen_ai_platform":
@@ -1083,6 +1089,8 @@ model_list = list(
     | deepgram_models
     | elevenlabs_models
     | dashscope_models
+    | rezecyan_models
+    | byteplus_models
     | qwencloud_models
     | qwen_ai_platform_models
     | moonshot_models
@@ -1191,6 +1199,8 @@ def _build_models_by_provider() -> dict:
         "elevenlabs": elevenlabs_models,
         "heroku": heroku_models,
         "dashscope": dashscope_models,
+        "rezecyan": rezecyan_models,
+        "byteplus": byteplus_models,
         "qwencloud": qwencloud_models,
         "qwen_ai_platform": qwen_ai_platform_models,
         "modelscope": modelscope_models,
@@ -2028,6 +2038,15 @@ if TYPE_CHECKING:
     )
     from .llms.dashscope.rerank.transformation import (
         DashScopeRerankConfig as DashScopeRerankConfig,
+    )
+    from .llms.rezecyan.chat.transformation import (
+        RezecyanChatConfig as RezecyanChatConfig,
+    )
+    from .llms.rezecyan.embed.transformation import (
+        RezecyanEmbeddingConfig as RezecyanEmbeddingConfig,
+    )
+    from .llms.rezecyan.rerank.transformation import (
+        RezecyanRerankConfig as RezecyanRerankConfig,
     )
     from .llms.dashscope.qwencloud import (
         QwenCloudChatConfig as QwenCloudChatConfig,

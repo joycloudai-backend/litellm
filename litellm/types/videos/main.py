@@ -22,6 +22,7 @@ class VideoObject(BaseModel):
     size: str | None = None
     model: str | None = None
     usage: dict[str, Any] | None = None
+    video_url: str | None = None
     _hidden_params: dict[str, builtins.object] = {}
 
     def __contains__(self, key) -> bool:

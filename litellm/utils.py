@@ -6470,6 +6470,16 @@ def validate_environment(
                 keys_in_environment = True
             else:
                 missing_keys.append("VOLCENGINE_API_KEY")
+        elif custom_llm_provider == "byteplus":
+            if "BYTEPLUS_API_KEY" in os.environ:
+                keys_in_environment = True
+            else:
+                missing_keys.append("BYTEPLUS_API_KEY")
+        elif custom_llm_provider == "rezecyan":
+            if "REZECYAN_API_KEY" in os.environ:
+                keys_in_environment = True
+            else:
+                missing_keys.append("REZECYAN_API_KEY")
         elif custom_llm_provider == "codestral" or custom_llm_provider == "text-completion-codestral":
             if "CODESTRAL_API_KEY" in os.environ:
                 keys_in_environment = True
@@ -8115,6 +8125,7 @@ class ProviderConfigManager:
             LlmProviders.NEBIUS: (lambda: litellm.NebiusConfig(), False),
             LlmProviders.WANDB: (lambda: litellm.WandbConfig(), False),
             LlmProviders.DASHSCOPE: (lambda: litellm.DashScopeChatConfig(), False),
+            LlmProviders.REZECYAN: (lambda: litellm.RezecyanChatConfig(), False),
             LlmProviders.QWENCLOUD: (lambda: litellm.QwenCloudChatConfig(), False),
             LlmProviders.QWEN_AI_PLATFORM: (
                 lambda: litellm.QwenAIPlatformChatConfig(),
@@ -8334,6 +8345,12 @@ class ProviderConfigManager:
             )
 
             return VolcEngineEmbeddingConfig()
+        elif litellm.LlmProviders.REZECYAN == provider:
+            from litellm.llms.rezecyan.embed.transformation import (
+                RezecyanEmbeddingConfig,
+            )
+
+            return RezecyanEmbeddingConfig()
         elif provider in (
             litellm.LlmProviders.DASHSCOPE,
             litellm.LlmProviders.QWENCLOUD,
@@ -8426,6 +8443,12 @@ class ProviderConfigManager:
             )
 
             return get_dashscope_family_rerank_config(provider.value)
+        elif litellm.LlmProviders.REZECYAN == provider:
+            from litellm.llms.rezecyan.rerank.transformation import (
+                RezecyanRerankConfig,
+            )
+
+            return RezecyanRerankConfig()
         return litellm.CohereRerankConfig()
 
     @staticmethod
@@ -8476,6 +8499,12 @@ class ProviderConfigManager:
             )
 
             return DeepSeekAnthropicMessagesConfig()
+        elif litellm.LlmProviders.REZECYAN == provider:
+            from litellm.llms.rezecyan.messages.transformation import (
+                RezecyanAnthropicMessagesConfig,
+            )
+
+            return RezecyanAnthropicMessagesConfig()
         elif litellm.LlmProviders.TENCENT == provider:
             from litellm.llms.tencent.messages.transformation import (
                 TencentAnthropicMessagesConfig,
@@ -9114,6 +9143,12 @@ class ProviderConfigManager:
             )
 
             return get_dashscope_family_image_generation_config(provider.value)
+        elif LlmProviders.REZECYAN == provider:
+            from litellm.llms.rezecyan.image_generation import (
+                get_rezecyan_image_generation_config,
+            )
+
+            return get_rezecyan_image_generation_config(model)
         elif LlmProviders.MODELSCOPE == provider:
             from litellm.llms.modelscope.image_generation import (
                 get_modelscope_image_generation_config,
@@ -9151,6 +9186,18 @@ class ProviderConfigManager:
             from litellm.llms.hosted_vllm.videos import get_hosted_vllm_video_config
 
             return get_hosted_vllm_video_config(model)
+        elif LlmProviders.VOLCENGINE == provider:
+            from litellm.llms.volcengine.videos.transformation import (
+                VolcEngineVideoConfig,
+            )
+
+            return VolcEngineVideoConfig()
+        elif LlmProviders.BYTEPLUS == provider:
+            from litellm.llms.byteplus.videos.transformation import (
+                BytePlusVideoConfig,
+            )
+
+            return BytePlusVideoConfig()
         return None
 
     @staticmethod

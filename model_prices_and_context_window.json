@@ -15175,47 +15175,43 @@
         ]
     },
     "dashscope/qwen3.7-max": {
-        "cache_read_input_token_cost": 5e-07,
         "input_cost_per_token": 2.5e-06,
         "litellm_provider": "dashscope",
-        "max_input_tokens": 991808,
-        "max_output_tokens": 65536,
-        "max_tokens": 65536,
         "mode": "chat",
         "output_cost_per_token": 7.5e-06,
-        "source": "https://www.alibabacloud.com/help/en/model-studio/models",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
         "supports_function_calling": true,
         "supports_prompt_caching": true,
         "supports_reasoning": true,
-        "supports_response_schema": true,
-        "supports_tool_choice": true
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 2.5e-07,
+        "cache_creation_input_token_cost": 3.125e-06
     },
     "dashscope/qwen3.7-plus": {
         "litellm_provider": "dashscope",
-        "max_input_tokens": 991808,
-        "max_output_tokens": 65536,
-        "max_tokens": 65536,
         "mode": "chat",
-        "source": "https://www.alibabacloud.com/help/en/model-studio/models",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
         "supports_function_calling": true,
         "supports_prompt_caching": true,
         "supports_reasoning": true,
-        "supports_response_schema": true,
         "supports_tool_choice": true,
-        "supports_vision": true,
         "tiered_pricing": [
             {
-                "cache_read_input_token_cost": 8e-08,
                 "input_cost_per_token": 4e-07,
+                "cache_read_input_token_cost": 4e-08,
+                "cache_creation_input_token_cost": 5e-07,
                 "output_cost_per_token": 1.6e-06,
                 "range": [
-                    0,
+                    0.0,
                     256000.0
                 ]
             },
             {
-                "cache_read_input_token_cost": 2.4e-07,
                 "input_cost_per_token": 1.2e-06,
+                "cache_read_input_token_cost": 1.2e-07,
+                "cache_creation_input_token_cost": 1.5e-06,
                 "output_cost_per_token": 4.8e-06,
                 "range": [
                     256000.0,
@@ -15257,18 +15253,22 @@
     "dashscope/qwen-image-2.0": {
         "litellm_provider": "dashscope",
         "mode": "image_generation",
-        "source": "https://www.alibabacloud.com/help/en/model-studio/models",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
         "supported_endpoints": [
             "/v1/images/generations"
-        ]
+        ],
+        "input_cost_per_image": 0.035,
+        "provider_pricing_currency": "USD"
     },
     "dashscope/qwen-image-2.0-pro": {
         "litellm_provider": "dashscope",
         "mode": "image_generation",
-        "source": "https://www.alibabacloud.com/help/en/model-studio/models",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
         "supported_endpoints": [
             "/v1/images/generations"
-        ]
+        ],
+        "input_cost_per_image": 0.075,
+        "provider_pricing_currency": "USD"
     },
     "dashscope/qwen-image-3.0": {
         "litellm_provider": "dashscope",
@@ -63110,5 +63110,2152 @@
         "supports_tool_choice": false,
         "supports_response_schema": true,
         "supports_vision": false
+    },
+    "dashscope/deepseek/deepseek-v3.2": {
+        "input_cost_per_token": 5.7e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 1.71e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 5.7e-08,
+        "cache_creation_input_token_cost": 7.13e-07
+    },
+    "dashscope/deepseek/deepseek-v4-flash": {
+        "input_cost_per_token": 2e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 4e-07,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 4e-08
+    },
+    "dashscope/deepseek/deepseek-v4-flash-us": {
+        "input_cost_per_token": 2e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 4e-07,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 4e-08
+    },
+    "dashscope/deepseek/deepseek-v4-pro": {
+        "input_cost_per_token": 2.4e-06,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 4.8e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 2e-07
+    },
+    "dashscope/deepseek/deepseek-v4-pro-us": {
+        "input_cost_per_token": 2.4e-06,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 4.8e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 2e-07
+    },
+    "dashscope/glm/glm-5-cn": {
+        "cache_read_input_token_cost": 1.15e-07,
+        "cache_read_input_token_cost_above_32k_tokens": 1.72e-07,
+        "input_cost_per_token": 5.73e-07,
+        "input_cost_per_token_above_32k_tokens": 8.6e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 2.58e-06,
+        "output_cost_per_token_above_32k_tokens": 3.154e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/glm/glm-5.1": {
+        "input_cost_per_token": 1.4e-06,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 4.4e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 2.6e-07
+    },
+    "dashscope/glm/glm-5.1-cn": {
+        "cache_read_input_token_cost": 8.3e-08,
+        "cache_read_input_token_cost_above_32k_tokens": 1.1e-07,
+        "input_cost_per_token": 8.25e-07,
+        "input_cost_per_token_above_32k_tokens": 1.1e-06,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 3.301e-06,
+        "output_cost_per_token_above_32k_tokens": 3.851e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/glm/glm-5.2": {
+        "input_cost_per_token": 1.4e-06,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 4.4e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 2.8e-07
+    },
+    "dashscope/glm/glm-5.2-cn": {
+        "input_cost_per_token": 1.1e-06,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 3.851e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 2.75e-07
+    },
+    "dashscope/glm/glm-5.2-fast-preview": {
+        "input_cost_per_token": 2.8e-06,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 8.8e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 5.6e-07
+    },
+    "dashscope/glm/glm-5.2-fast-preview-cn": {
+        "input_cost_per_token": 2.2e-06,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 7.702e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 5.5e-07
+    },
+    "dashscope/kimi/kimi-k2-thinking-cn": {
+        "input_cost_per_token": 5.74e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 2.294e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 1.15e-07
+    },
+    "dashscope/kimi/kimi-k2.5-cn": {
+        "input_cost_per_token": 5.74e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 3.011e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 5.7e-08,
+        "cache_creation_input_token_cost": 7.18e-07
+    },
+    "dashscope/kimi/kimi-k2.6-cn": {
+        "input_cost_per_token": 8.939e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 3.7131e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 8.94e-08,
+        "cache_creation_input_token_cost": 1.1174e-06
+    },
+    "dashscope/kimi/kimi-k2.7-code": {
+        "input_cost_per_token": 9.5e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 4e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 1.9e-07
+    },
+    "dashscope/kimi/kimi-k2.7-code-cn": {
+        "input_cost_per_token": 8.939e-07,
+        "litellm_provider": "openai",
+        "mode": "chat",
+        "output_cost_per_token": 3.7131e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 8.94e-08,
+        "cache_creation_input_token_cost": 1.1174e-06
+    },
+    "dashscope/qwen-flash-2025-07-28-hk": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 5e-08,
+                "output_cost_per_token": 4e-07,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 2.5e-07,
+                "output_cost_per_token": 2e-06,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen-flash-hk": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 5e-08,
+                "output_cost_per_token": 4e-07,
+                "cache_read_input_token_cost": 1e-08,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 2.5e-07,
+                "output_cost_per_token": 2e-06,
+                "cache_read_input_token_cost": 5e-08,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen-image-2.0-pro-2026-03-03": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_image": 0.075
+    },
+    "dashscope/qwen-image-2.0-pro-2026-04-22": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_image": 0.075
+    },
+    "dashscope/qwen-image-2.0-pro-2026-06-22": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_image": 0.075
+    },
+    "dashscope/qwen-image-edit-max": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_image": 0.075
+    },
+    "dashscope/qwen-image-edit-max-2026-01-16": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_image": 0.075
+    },
+    "dashscope/qwen-image-max": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_image": 0.075
+    },
+    "dashscope/qwen-max-2025-01-25-hk": {
+        "input_cost_per_token": 1.6e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 6.4e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen-max-hk": {
+        "input_cost_per_token": 1.6e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 6.4e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 3.2e-07
+    },
+    "dashscope/qwen-plus-2025-07-28-hk": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 4e-07,
+                "output_cost_per_token": 1.2e-06,
+                "output_cost_per_reasoning_token": 4e-06,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.2e-06,
+                "output_cost_per_token": 3.6e-06,
+                "output_cost_per_reasoning_token": 1.2e-05,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen-plus-2025-12-01-us": {
+        "input_cost_per_token": 4e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 1.2e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen-plus-eu": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 4e-07,
+                "output_cost_per_token": 1.2e-06,
+                "output_cost_per_reasoning_token": 4e-06,
+                "cache_read_input_token_cost": 4e-08,
+                "cache_creation_input_token_cost": 5e-07,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.2e-06,
+                "output_cost_per_token": 3.6e-06,
+                "output_cost_per_reasoning_token": 1.2e-05,
+                "cache_read_input_token_cost": 1.2e-07,
+                "cache_creation_input_token_cost": 1.5e-06,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen-plus-hk": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 4e-07,
+                "output_cost_per_token": 1.2e-06,
+                "output_cost_per_reasoning_token": 4e-06,
+                "cache_read_input_token_cost": 4e-08,
+                "cache_creation_input_token_cost": 5e-07,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.2e-06,
+                "output_cost_per_token": 3.6e-06,
+                "output_cost_per_reasoning_token": 1.2e-05,
+                "cache_read_input_token_cost": 1.2e-07,
+                "cache_creation_input_token_cost": 1.5e-06,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen-plus-us": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 4e-07,
+                "output_cost_per_token": 1.2e-06,
+                "output_cost_per_reasoning_token": 4e-06,
+                "cache_read_input_token_cost": 8e-08,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.2e-06,
+                "output_cost_per_token": 3.6e-06,
+                "output_cost_per_reasoning_token": 1.2e-05,
+                "cache_read_input_token_cost": 2.4e-07,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen-vl-max-2025-08-13-hk": {
+        "input_cost_per_token": 8e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 3.2e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen-vl-max-hk": {
+        "input_cost_per_token": 8e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 3.2e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 1.6e-07
+    },
+    "dashscope/qwen-vl-plus-2025-08-15-hk": {
+        "input_cost_per_token": 2.1e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 6.3e-07,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen-vl-plus-hk": {
+        "input_cost_per_token": 2.1e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 6.3e-07,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 4.2e-08
+    },
+    "dashscope/qwen3-rerank": {
+        "input_cost_per_token": 1e-07,
+        "litellm_provider": "dashscope",
+        "mode": "rerank",
+        "output_cost_per_token": 0.0,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+    },
+    "dashscope/qwen3-rerank-cn": {
+        "input_cost_per_token": 6.9e-08,
+        "litellm_provider": "dashscope",
+        "mode": "rerank",
+        "output_cost_per_token": 0.0,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+    },
+    "dashscope/qwen3-vl-flash-2025-10-15-eu": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 5e-08,
+                "output_cost_per_token": 4e-07,
+                "range": [
+                    0.0,
+                    32000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 7.5e-08,
+                "output_cost_per_token": 6e-07,
+                "range": [
+                    32000.0,
+                    128000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.2e-07,
+                "output_cost_per_token": 9.6e-07,
+                "range": [
+                    128000.0,
+                    256000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3-vl-flash-2026-01-22-eu": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 5e-08,
+                "output_cost_per_token": 4e-07,
+                "range": [
+                    0.0,
+                    32000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 7.5e-08,
+                "output_cost_per_token": 6e-07,
+                "range": [
+                    32000.0,
+                    128000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.2e-07,
+                "output_cost_per_token": 9.6e-07,
+                "range": [
+                    128000.0,
+                    256000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3-vl-flash-eu": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 5e-08,
+                "output_cost_per_token": 4e-07,
+                "cache_read_input_token_cost": 1e-08,
+                "range": [
+                    0.0,
+                    32000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 7.5e-08,
+                "output_cost_per_token": 6e-07,
+                "cache_read_input_token_cost": 1.5e-08,
+                "range": [
+                    32000.0,
+                    128000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3-vl-plus-2025-12-19-eu": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 2e-07,
+                "output_cost_per_token": 1.6e-06,
+                "range": [
+                    0.0,
+                    32000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 3e-07,
+                "output_cost_per_token": 2.4e-06,
+                "range": [
+                    32000.0,
+                    128000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 6e-07,
+                "output_cost_per_token": 4.8e-06,
+                "range": [
+                    128000.0,
+                    256000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3-vl-plus-eu": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 2e-07,
+                "output_cost_per_token": 1.6e-06,
+                "cache_read_input_token_cost": 2e-08,
+                "cache_creation_input_token_cost": 2.5e-07,
+                "range": [
+                    0.0,
+                    32000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 3e-07,
+                "output_cost_per_token": 2.4e-06,
+                "cache_read_input_token_cost": 3e-08,
+                "cache_creation_input_token_cost": 3.75e-07,
+                "range": [
+                    32000.0,
+                    128000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 6e-07,
+                "output_cost_per_token": 4.8e-06,
+                "cache_read_input_token_cost": 6e-08,
+                "cache_creation_input_token_cost": 7.5e-07,
+                "range": [
+                    128000.0,
+                    256000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3.5-flash-2026-02-23-eu": {
+        "input_cost_per_token": 1e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 4e-07,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen3.5-flash-2026-02-23-hk": {
+        "input_cost_per_token": 1e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 4e-07,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen3.5-flash-eu": {
+        "input_cost_per_token": 1e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 4e-07,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 1e-08,
+        "cache_creation_input_token_cost": 1.25e-07
+    },
+    "dashscope/qwen3.5-flash-hk": {
+        "input_cost_per_token": 1e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 4e-07,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 1e-08,
+        "cache_creation_input_token_cost": 1.3e-07
+    },
+    "dashscope/qwen3.6-flash-us": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 2.5e-07,
+                "output_cost_per_token": 1.5e-06,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1e-06,
+                "output_cost_per_token": 4e-06,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3.6-plus": {
+        "input_cost_per_token": 5e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 3e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 5e-08,
+        "cache_creation_input_token_cost": 6.25e-07
+    },
+    "dashscope/qwen3.6-plus-2026-04-02-cn": {
+        "input_cost_per_token": 2.76e-07,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 1.651e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen3.6-plus-cn": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 2.76e-07,
+                "cache_read_input_token_cost": 2.8e-08,
+                "cache_creation_input_token_cost": 3.44e-07,
+                "output_cost_per_token": 1.651e-06,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.101e-06,
+                "cache_read_input_token_cost": 1.11e-07,
+                "cache_creation_input_token_cost": 1.376e-06,
+                "output_cost_per_token": 6.602e-06,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3.7-max-2026-05-17": {
+        "input_cost_per_token": 2.5e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 7.5e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen3.7-max-2026-05-20": {
+        "input_cost_per_token": 2.5e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 7.5e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 2.5e-07,
+        "cache_creation_input_token_cost": 3.125e-06
+    },
+    "dashscope/qwen3.7-max-2026-05-20-cn": {
+        "input_cost_per_token": 1.65e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 4.951e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 1.65e-07,
+        "cache_creation_input_token_cost": 2.063e-06
+    },
+    "dashscope/qwen3.7-max-2026-06-08": {
+        "input_cost_per_token": 2.5e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 7.5e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 2.5e-07,
+        "cache_creation_input_token_cost": 3.125e-06
+    },
+    "dashscope/qwen3.7-max-2026-06-08-cn": {
+        "input_cost_per_token": 1.65e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 4.951e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 1.65e-07,
+        "cache_creation_input_token_cost": 2.063e-06
+    },
+    "dashscope/qwen3.7-max-cn": {
+        "input_cost_per_token": 1.65e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 4.951e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 1.65e-07,
+        "cache_creation_input_token_cost": 2.063e-06
+    },
+    "dashscope/qwen3.7-max-preview": {
+        "input_cost_per_token": 2.5e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 7.5e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "dashscope/qwen3.7-max-us": {
+        "input_cost_per_token": 2.5e-06,
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "output_cost_per_token": 7.5e-06,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "cache_read_input_token_cost": 5e-07
+    },
+    "dashscope/qwen3.7-plus-2026-05-26": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 4e-07,
+                "cache_read_input_token_cost": 4e-08,
+                "cache_creation_input_token_cost": 5e-07,
+                "output_cost_per_token": 1.6e-06,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.2e-06,
+                "cache_read_input_token_cost": 1.2e-07,
+                "cache_creation_input_token_cost": 1.5e-06,
+                "output_cost_per_token": 4.8e-06,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3.7-plus-2026-05-26-cn": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 2.76e-07,
+                "cache_read_input_token_cost": 2.8e-08,
+                "cache_creation_input_token_cost": 3.44e-07,
+                "output_cost_per_token": 1.101e-06,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 8.26e-07,
+                "cache_read_input_token_cost": 8.3e-08,
+                "cache_creation_input_token_cost": 1.032e-06,
+                "output_cost_per_token": 3.301e-06,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3.7-plus-cn": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 2.76e-07,
+                "cache_read_input_token_cost": 2.8e-08,
+                "cache_creation_input_token_cost": 3.44e-07,
+                "output_cost_per_token": 1.101e-06,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 8.26e-07,
+                "cache_read_input_token_cost": 8.3e-08,
+                "cache_creation_input_token_cost": 1.032e-06,
+                "output_cost_per_token": 3.301e-06,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen3.7-plus-us": {
+        "litellm_provider": "dashscope",
+        "mode": "chat",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true,
+        "tiered_pricing": [
+            {
+                "input_cost_per_token": 4e-07,
+                "output_cost_per_token": 1.6e-06,
+                "cache_read_input_token_cost": 8e-08,
+                "range": [
+                    0.0,
+                    256000.0
+                ]
+            },
+            {
+                "input_cost_per_token": 1.2e-06,
+                "output_cost_per_token": 4.8e-06,
+                "cache_read_input_token_cost": 2.4e-07,
+                "range": [
+                    256000.0,
+                    1000000.0
+                ]
+            }
+        ]
+    },
+    "dashscope/qwen-image-2.0-2026-03-03": {
+        "litellm_provider": "dashscope",
+        "mode": "image_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+        "supported_endpoints": [
+            "/v1/images/generations"
+        ],
+        "input_cost_per_image": 0.035
+    },
+    "dashscope/text-embedding-v3": {
+        "input_cost_per_token": 7e-08,
+        "litellm_provider": "dashscope",
+        "mode": "embedding",
+        "output_cost_per_token": 0.0,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+    },
+    "dashscope/text-embedding-v4": {
+        "input_cost_per_token": 7e-08,
+        "litellm_provider": "dashscope",
+        "mode": "embedding",
+        "output_cost_per_token": 0.0,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+    },
+    "dashscope/text-embedding-v4-cn": {
+        "input_cost_per_token": 7.2e-08,
+        "litellm_provider": "dashscope",
+        "mode": "embedding",
+        "output_cost_per_token": 0.0,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+    },
+    "dashscope/text-embedding-v4-hk": {
+        "input_cost_per_token": 7e-08,
+        "litellm_provider": "dashscope",
+        "mode": "embedding",
+        "output_cost_per_token": 0.0,
+        "provider_pricing_currency": "USD",
+        "source": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+    },
+    "volcengine/doubao-seedance-2.0": {
+        "litellm_provider": "volcengine",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "CNY",
+        "source": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 46.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 28.0,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 51.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 31.0
+    },
+    "volcengine/doubao-seedance-2.0-fast": {
+        "litellm_provider": "volcengine",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "CNY",
+        "source": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 37.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 22.0
+    },
+    "volcengine/doubao-seedance-2.0-mini": {
+        "litellm_provider": "volcengine",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "CNY",
+        "source": "https://www.volcengine.com/docs/82379/1544106?lang=zh",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 23.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 14.0
+    },
+    "volcengine/seedance-1.5-pro": {
+        "litellm_provider": "volcengine",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "CNY",
+        "source": "https://www.volcengine.com/docs/82379/1366799",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_audio": 8.0,
+        "volcengine_video_output_cost_per_million_tokens_with_audio": 16.0
+    },
+    "byteplus/dreamina-seedance-2.0": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 7.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 4.3,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video_1080p": 7.7,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_1080p": 4.7,
+        "volcengine_video_output_cost_per_million_tokens_without_input_video_4k": 4.0,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video_4k": 2.4
+    },
+    "byteplus/dreamina-seedance-2.0-fast": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 5.6,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 3.3
+    },
+    "byteplus/dreamina-seedance-2.0-mini": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 3.5,
+        "volcengine_video_output_cost_per_million_tokens_with_input_video": 2.1
+    },
+    "byteplus/seedance-1.5-pro": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": [
+            "text",
+            "image",
+            "video",
+            "audio"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_audio": 1.2,
+        "volcengine_video_output_cost_per_million_tokens_with_audio": 2.4
+    },
+    "byteplus/seedance-1-0-pro": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": [
+            "text",
+            "image"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 2.5
+    },
+    "byteplus/seedance-1-0-pro-fast": {
+        "litellm_provider": "byteplus",
+        "max_input_tokens": 1024,
+        "max_output_tokens": 1024,
+        "max_tokens": 1024,
+        "mode": "video_generation",
+        "provider_pricing_currency": "USD",
+        "source": "https://www.byteplus.com/docs/82379/1544106",
+        "supported_modalities": [
+            "text",
+            "image"
+        ],
+        "supported_output_modalities": [
+            "video"
+        ],
+        "volcengine_video_output_cost_per_million_tokens_without_input_video": 1
+    },
+    "rezecyan/MiniMax-M2.5": {
+        "cache_read_input_token_cost": 6e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 3e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 0.42,
+            "input_cny_per_1m": 2.1,
+            "output_cny_per_1m": 8.4
+        },
+        "output_cost_per_token": 1.2e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/cosyvoice-v3-flash": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.42857e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "input_cny_per_1m": 1.0,
+            "output_cny_per_1m": 1.0
+        },
+        "output_cost_per_token": 1.42857e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/cosyvoice-v3-plus": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.85714e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "input_cny_per_1m": 2.0,
+            "output_cny_per_1m": 2.0
+        },
+        "output_cost_per_token": 2.85714e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/cosyvoice-v3.5-flash": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.14286e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "input_cny_per_1m": 0.8,
+            "output_cny_per_1m": 0.8
+        },
+        "output_cost_per_token": 1.14286e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/cosyvoice-v3.5-plus": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.14286e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "input_cny_per_1m": 1.5,
+            "output_cny_per_1m": 1.5
+        },
+        "output_cost_per_token": 2.14286e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/deepseek-v4-flash": {
+        "cache_read_input_token_cost": 2.8571e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.42857e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 0.2,
+            "input_cny_per_1m": 1.0,
+            "output_cny_per_1m": 2.0
+        },
+        "output_cost_per_token": 2.85714e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/deepseek-v4-flash-0731": {
+        "cache_read_input_token_cost": 2.8571e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.42857e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 0.2,
+            "input_cny_per_1m": 1.0,
+            "output_cny_per_1m": 2.0
+        },
+        "output_cost_per_token": 2.85714e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/deepseek-v4-pro": {
+        "cache_read_input_token_cost": 1.42857e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.714286e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 1.0,
+            "input_cny_per_1m": 12.0,
+            "output_cny_per_1m": 24.0
+        },
+        "output_cost_per_token": 3.428571e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/deepseek-v4-pro-0813": {
+        "cache_read_input_token_cost": 1.28571e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.285714e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 0.9,
+            "input_cny_per_1m": 9.0,
+            "output_cny_per_1m": 27.0
+        },
+        "output_cost_per_token": 3.857143e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/glm-5": {
+        "cache_read_input_token_cost": 1.14286e-07,
+        "cache_read_input_token_cost_above_32k_tokens": 1.71429e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 5.71429e-07,
+        "input_cost_per_token_above_32k_tokens": 8.57143e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 0.8,
+            "cache_read_cny_per_1m_above_32k_tokens": 1.2,
+            "input_cny_per_1m": 4.0,
+            "input_cny_per_1m_above_32k_tokens": 6.0,
+            "output_cny_per_1m": 18.0,
+            "output_cny_per_1m_above_32k_tokens": 22.0
+        },
+        "output_cost_per_token": 2.571429e-06,
+        "output_cost_per_token_above_32k_tokens": 3.142857e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/glm-5.1": {
+        "cache_creation_input_token_cost": 1.071429e-06,
+        "cache_creation_input_token_cost_above_32k_tokens": 1.428571e-06,
+        "cache_read_input_token_cost": 1.71429e-07,
+        "cache_read_input_token_cost_above_32k_tokens": 2.28571e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 8.57143e-07,
+        "input_cost_per_token_above_32k_tokens": 1.142857e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 7.5,
+            "cache_creation_cny_per_1m_above_32k_tokens": 10.0,
+            "cache_read_cny_per_1m": 1.2,
+            "cache_read_cny_per_1m_above_32k_tokens": 1.6,
+            "input_cny_per_1m": 6.0,
+            "input_cny_per_1m_above_32k_tokens": 8.0,
+            "output_cny_per_1m": 24.0,
+            "output_cny_per_1m_above_32k_tokens": 28.0
+        },
+        "output_cost_per_token": 3.428571e-06,
+        "output_cost_per_token_above_32k_tokens": 4e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/glm-5.2": {
+        "cache_read_input_token_cost": 2.85714e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.142857e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 2.0,
+            "input_cny_per_1m": 8.0,
+            "output_cny_per_1m": 28.0
+        },
+        "output_cost_per_token": 4e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/glm-5.2-fast-preview": {
+        "cache_read_input_token_cost": 5.71429e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.285714e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 4.0,
+            "input_cny_per_1m": 16.0,
+            "output_cny_per_1m": 56.0
+        },
+        "output_cost_per_token": 8e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/glm-5.3": {
+        "cache_read_input_token_cost": 2.85714e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.142857e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 2.0,
+            "input_cny_per_1m": 8.0,
+            "output_cny_per_1m": 28.0
+        },
+        "output_cost_per_token": 4e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/kimi-k2.5": {
+        "cache_creation_input_token_cost": 7.14286e-07,
+        "cache_read_input_token_cost": 1.14286e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 5.71429e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 5.0,
+            "cache_read_cny_per_1m": 0.8,
+            "input_cny_per_1m": 4.0,
+            "output_cny_per_1m": 21.0
+        },
+        "output_cost_per_token": 3e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/kimi-k2.6": {
+        "cache_creation_input_token_cost": 1.16e-06,
+        "cache_read_input_token_cost": 1.85714e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 9.28571e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 8.12,
+            "cache_read_cny_per_1m": 1.3,
+            "input_cny_per_1m": 6.5,
+            "output_cny_per_1m": 27.0
+        },
+        "output_cost_per_token": 3.857143e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/kimi-k2.7-code": {
+        "cache_creation_input_token_cost": 1.16e-06,
+        "cache_read_input_token_cost": 1.85714e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 9.28571e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 8.12,
+            "cache_read_cny_per_1m": 1.3,
+            "input_cny_per_1m": 6.5,
+            "output_cny_per_1m": 27.0
+        },
+        "output_cost_per_token": 3.857143e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/kimi-k3": {
+        "cache_read_input_token_cost": 2.85714e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.857143e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 2.0,
+            "input_cny_per_1m": 20.0,
+            "output_cny_per_1m": 100.0
+        },
+        "output_cost_per_token": 1.4285714e-05,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen-image-2.0": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_image": 0.028571428571,
+        "litellm_provider": "rezecyan",
+        "mode": "image_generation",
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/qwen-image-2.0-pro": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_image": 0.071428571429,
+        "litellm_provider": "rezecyan",
+        "mode": "image_generation",
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/qwen-image-max": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_image": 0.071428571429,
+        "litellm_provider": "rezecyan",
+        "mode": "image_generation",
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/qwen-image-plus": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_image": 0.028571428571,
+        "litellm_provider": "rezecyan",
+        "mode": "image_generation",
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/qwen-vl-plus": {
+        "cache_read_input_token_cost": 2.2857e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.14286e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_read_cny_per_1m": 0.16,
+            "input_cny_per_1m": 0.8,
+            "output_cny_per_1m": 2.0
+        },
+        "output_cost_per_token": 2.85714e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3-vl-flash": {
+        "cache_creation_input_token_cost": 2.6714e-08,
+        "cache_creation_input_token_cost_above_128k_tokens": 1.07143e-07,
+        "cache_creation_input_token_cost_above_32k_tokens": 5.3571e-08,
+        "cache_read_input_token_cost": 4.286e-09,
+        "cache_read_input_token_cost_above_128k_tokens": 1.7143e-08,
+        "cache_read_input_token_cost_above_32k_tokens": 8.571e-09,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.1429e-08,
+        "input_cost_per_token_above_128k_tokens": 8.5714e-08,
+        "input_cost_per_token_above_32k_tokens": 4.2857e-08,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 0.187,
+            "cache_creation_cny_per_1m_above_128k_tokens": 0.75,
+            "cache_creation_cny_per_1m_above_32k_tokens": 0.375,
+            "cache_read_cny_per_1m": 0.03,
+            "cache_read_cny_per_1m_above_128k_tokens": 0.12,
+            "cache_read_cny_per_1m_above_32k_tokens": 0.06,
+            "input_cny_per_1m": 0.15,
+            "input_cny_per_1m_above_128k_tokens": 0.6,
+            "input_cny_per_1m_above_32k_tokens": 0.3,
+            "output_cny_per_1m": 1.5,
+            "output_cny_per_1m_above_128k_tokens": 6.0,
+            "output_cny_per_1m_above_32k_tokens": 3.0
+        },
+        "output_cost_per_token": 2.14286e-07,
+        "output_cost_per_token_above_128k_tokens": 8.57143e-07,
+        "output_cost_per_token_above_32k_tokens": 4.28571e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3-vl-plus": {
+        "cache_creation_input_token_cost": 1.78571e-07,
+        "cache_creation_input_token_cost_above_128k_tokens": 5.35714e-07,
+        "cache_creation_input_token_cost_above_32k_tokens": 2.67143e-07,
+        "cache_read_input_token_cost": 2.8571e-08,
+        "cache_read_input_token_cost_above_128k_tokens": 8.5714e-08,
+        "cache_read_input_token_cost_above_32k_tokens": 4.2857e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.42857e-07,
+        "input_cost_per_token_above_128k_tokens": 4.28571e-07,
+        "input_cost_per_token_above_32k_tokens": 2.14286e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 1.25,
+            "cache_creation_cny_per_1m_above_128k_tokens": 3.75,
+            "cache_creation_cny_per_1m_above_32k_tokens": 1.87,
+            "cache_read_cny_per_1m": 0.2,
+            "cache_read_cny_per_1m_above_128k_tokens": 0.6,
+            "cache_read_cny_per_1m_above_32k_tokens": 0.3,
+            "input_cny_per_1m": 1.0,
+            "input_cny_per_1m_above_128k_tokens": 3.0,
+            "input_cny_per_1m_above_32k_tokens": 1.5,
+            "output_cny_per_1m": 10.0,
+            "output_cny_per_1m_above_128k_tokens": 30.0,
+            "output_cny_per_1m_above_32k_tokens": 15.0
+        },
+        "output_cost_per_token": 1.428571e-06,
+        "output_cost_per_token_above_128k_tokens": 4.285714e-06,
+        "output_cost_per_token_above_32k_tokens": 2.142857e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.5-flash": {
+        "cache_creation_input_token_cost": 3.5714e-08,
+        "cache_creation_input_token_cost_above_128k_tokens": 1.42857e-07,
+        "cache_creation_input_token_cost_above_256k_tokens": 2.14286e-07,
+        "cache_read_input_token_cost": 2.857e-09,
+        "cache_read_input_token_cost_above_128k_tokens": 1.1429e-08,
+        "cache_read_input_token_cost_above_256k_tokens": 1.7143e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.8571e-08,
+        "input_cost_per_token_above_128k_tokens": 1.14286e-07,
+        "input_cost_per_token_above_256k_tokens": 1.71429e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 0.25,
+            "cache_creation_cny_per_1m_above_128k_tokens": 1.0,
+            "cache_creation_cny_per_1m_above_256k_tokens": 1.5,
+            "cache_read_cny_per_1m": 0.02,
+            "cache_read_cny_per_1m_above_128k_tokens": 0.08,
+            "cache_read_cny_per_1m_above_256k_tokens": 0.12,
+            "input_cny_per_1m": 0.2,
+            "input_cny_per_1m_above_128k_tokens": 0.8,
+            "input_cny_per_1m_above_256k_tokens": 1.2,
+            "output_cny_per_1m": 2.0,
+            "output_cny_per_1m_above_128k_tokens": 8.0,
+            "output_cny_per_1m_above_256k_tokens": 12.0
+        },
+        "output_cost_per_token": 2.85714e-07,
+        "output_cost_per_token_above_128k_tokens": 1.142857e-06,
+        "output_cost_per_token_above_256k_tokens": 1.714286e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.5-omni-flash": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 3.14286e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "input_cny_per_1m": 2.2,
+            "output_cny_per_1m": 13.3
+        },
+        "output_cost_per_token": 1.9e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/qwen3.5-omni-plus": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "input_cny_per_1m": 7.0,
+            "output_cny_per_1m": 40.0
+        },
+        "output_cost_per_token": 5.714286e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/qwen3.5-plus": {
+        "cache_creation_input_token_cost": 1.42857e-07,
+        "cache_creation_input_token_cost_above_128_tokens": 3.57143e-07,
+        "cache_creation_input_token_cost_above_128k_tokens": 3.57143e-07,
+        "cache_creation_input_token_cost_above_256k_tokens": 7.14286e-07,
+        "cache_read_input_token_cost": 1.1429e-08,
+        "cache_read_input_token_cost_above_128_tokens": 2.8571e-08,
+        "cache_read_input_token_cost_above_128k_tokens": 2.8571e-08,
+        "cache_read_input_token_cost_above_256k_tokens": 5.7143e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.14286e-07,
+        "input_cost_per_token_above_128_tokens": 2.85714e-07,
+        "input_cost_per_token_above_128k_tokens": 2.85714e-07,
+        "input_cost_per_token_above_256k_tokens": 5.71429e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 1.0,
+            "cache_creation_cny_per_1m_above_128_tokens": 2.5,
+            "cache_creation_cny_per_1m_above_128k_tokens": 2.5,
+            "cache_creation_cny_per_1m_above_256k_tokens": 5.0,
+            "cache_read_cny_per_1m": 0.08,
+            "cache_read_cny_per_1m_above_128_tokens": 0.2,
+            "cache_read_cny_per_1m_above_128k_tokens": 0.2,
+            "cache_read_cny_per_1m_above_256k_tokens": 0.4,
+            "input_cny_per_1m": 0.8,
+            "input_cny_per_1m_above_128_tokens": 2.0,
+            "input_cny_per_1m_above_128k_tokens": 2.0,
+            "input_cny_per_1m_above_256k_tokens": 4.0,
+            "output_cny_per_1m": 4.8,
+            "output_cny_per_1m_above_128_tokens": 12.0,
+            "output_cny_per_1m_above_128k_tokens": 12.0,
+            "output_cny_per_1m_above_256k_tokens": 24.0
+        },
+        "output_cost_per_token": 6.85714e-07,
+        "output_cost_per_token_above_128_tokens": 1.714286e-06,
+        "output_cost_per_token_above_128k_tokens": 1.714286e-06,
+        "output_cost_per_token_above_256k_tokens": 3.428571e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.6-35b-a3b": {
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.57143e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "input_cny_per_1m": 1.8,
+            "output_cny_per_1m": 10.8
+        },
+        "output_cost_per_token": 1.542857e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing"
+    },
+    "rezecyan/qwen3.6-flash": {
+        "cache_creation_input_token_cost": 2.14286e-07,
+        "cache_creation_input_token_cost_above_256k_tokens": 8.57143e-07,
+        "cache_read_input_token_cost": 1.7143e-08,
+        "cache_read_input_token_cost_above_256k_tokens": 6.8571e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.71429e-07,
+        "input_cost_per_token_above_256k_tokens": 6.85714e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 1.5,
+            "cache_creation_cny_per_1m_above_256k_tokens": 6.0,
+            "cache_read_cny_per_1m": 0.12,
+            "cache_read_cny_per_1m_above_256k_tokens": 0.48,
+            "input_cny_per_1m": 1.2,
+            "input_cny_per_1m_above_256k_tokens": 4.8,
+            "output_cny_per_1m": 7.2,
+            "output_cny_per_1m_above_256k_tokens": 28.8
+        },
+        "output_cost_per_token": 1.028571e-06,
+        "output_cost_per_token_above_256k_tokens": 4.114286e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.6-max-preview": {
+        "cache_creation_input_token_cost": 1.607143e-06,
+        "cache_creation_input_token_cost_above_128k_tokens": 2.678571e-06,
+        "cache_read_input_token_cost": 1.28571e-07,
+        "cache_read_input_token_cost_above_128k_tokens": 2.14286e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.285714e-06,
+        "input_cost_per_token_above_128k_tokens": 2.142857e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 11.25,
+            "cache_creation_cny_per_1m_above_128k_tokens": 18.75,
+            "cache_read_cny_per_1m": 0.9,
+            "cache_read_cny_per_1m_above_128k_tokens": 1.5,
+            "input_cny_per_1m": 9.0,
+            "input_cny_per_1m_above_128k_tokens": 15.0,
+            "output_cny_per_1m": 54.0,
+            "output_cny_per_1m_above_128k_tokens": 90.0
+        },
+        "output_cost_per_token": 7.714286e-06,
+        "output_cost_per_token_above_128k_tokens": 1.2857143e-05,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.6-plus": {
+        "cache_creation_input_token_cost": 3.57143e-07,
+        "cache_creation_input_token_cost_above_256k_tokens": 1.428571e-06,
+        "cache_read_input_token_cost": 2.8571e-08,
+        "cache_read_input_token_cost_above_256k_tokens": 1.14286e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.85714e-07,
+        "input_cost_per_token_above_256k_tokens": 1.142857e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 2.5,
+            "cache_creation_cny_per_1m_above_256k_tokens": 10.0,
+            "cache_read_cny_per_1m": 0.2,
+            "cache_read_cny_per_1m_above_256k_tokens": 0.8,
+            "input_cny_per_1m": 2.0,
+            "input_cny_per_1m_above_256k_tokens": 8.0,
+            "output_cny_per_1m": 12.0,
+            "output_cny_per_1m_above_256k_tokens": 48.0
+        },
+        "output_cost_per_token": 1.714286e-06,
+        "output_cost_per_token_above_256k_tokens": 6.857143e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.7-max": {
+        "cache_creation_input_token_cost": 2.142857e-06,
+        "cache_read_input_token_cost": 1.71429e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.714286e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 15.0,
+            "cache_read_cny_per_1m": 1.2,
+            "input_cny_per_1m": 12.0,
+            "output_cny_per_1m": 36.0
+        },
+        "output_cost_per_token": 5.142857e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.7-plus": {
+        "cache_creation_input_token_cost": 3.57143e-07,
+        "cache_creation_input_token_cost_above_256k_tokens": 1.071429e-06,
+        "cache_read_input_token_cost": 2.8571e-08,
+        "cache_read_input_token_cost_above_256k_tokens": 8.5714e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 2.85714e-07,
+        "input_cost_per_token_above_256k_tokens": 8.57143e-07,
+        "litellm_provider": "rezecyan",
+        "max_input_tokens": 1000000,
+        "max_output_tokens": 32768,
+        "max_tokens": 32768,
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 2.5,
+            "cache_creation_cny_per_1m_above_256k_tokens": 7.5,
+            "cache_read_cny_per_1m": 0.2,
+            "cache_read_cny_per_1m_above_256k_tokens": 0.6,
+            "input_cny_per_1m": 2.0,
+            "input_cny_per_1m_above_256k_tokens": 6.0,
+            "output_cny_per_1m": 8.0,
+            "output_cny_per_1m_above_256k_tokens": 24.0
+        },
+        "output_cost_per_token": 1.142857e-06,
+        "output_cost_per_token_above_256k_tokens": 3.428571e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_function_calling": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_tool_choice": true
+    },
+    "rezecyan/qwen3.8-2.4t-a95b": {
+        "cache_creation_input_token_cost": 2.142857e-06,
+        "cache_read_input_token_cost": 2.14286e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.714286e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 15.0,
+            "cache_read_cny_per_1m": 1.5,
+            "input_cny_per_1m": 12.0,
+            "output_cny_per_1m": 36.0
+        },
+        "output_cost_per_token": 5.142857e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.8-27b": {
+        "cache_creation_input_token_cost": 5.35714e-07,
+        "cache_read_input_token_cost": 4.2857e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 4.28571e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 3.75,
+            "cache_read_cny_per_1m": 0.3,
+            "input_cny_per_1m": 3.0,
+            "output_cny_per_1m": 12.0
+        },
+        "output_cost_per_token": 1.714286e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.8-flash": {
+        "cache_creation_input_token_cost": 1.78571e-07,
+        "cache_read_input_token_cost": 1.4286e-08,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.14286e-07,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 1.25,
+            "cache_read_cny_per_1m": 0.1,
+            "input_cny_per_1m": 0.8,
+            "output_cny_per_1m": 2.7
+        },
+        "output_cost_per_token": 3.85714e-07,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.8-max": {
+        "cache_creation_input_token_cost": 2.142857e-06,
+        "cache_read_input_token_cost": 2.14286e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.714286e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 15.0,
+            "cache_read_cny_per_1m": 1.5,
+            "input_cny_per_1m": 12.0,
+            "output_cny_per_1m": 36.0
+        },
+        "output_cost_per_token": 5.142857e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/qwen3.8-max-0902": {
+        "cache_creation_input_token_cost": 2.142857e-06,
+        "cache_read_input_token_cost": 2.14286e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.714286e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 15.0,
+            "cache_read_cny_per_1m": 1.5,
+            "input_cny_per_1m": 12.0,
+            "output_cny_per_1m": 36.0
+        },
+        "output_cost_per_token": 5.142857e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
     }
 }
