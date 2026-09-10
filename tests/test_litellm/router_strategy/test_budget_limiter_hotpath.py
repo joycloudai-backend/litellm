@@ -303,3 +303,198 @@ def test_router_add_deployment_registers_deployment_budget(
     )
     assert config is not None
     assert config.max_budget == 0.000000000001
+
+
+def _grouped_model_list(budget_group="acct-42", max_budget=10.0):
+    return [
+        {
+            "model_name": "kimi-k2.5",
+            "litellm_params": {
+                "model": "openai/kimi-k2.5",
+                "max_budget": max_budget,
+                "budget_duration": "30d",
+                "budget_group": budget_group,
+            },
+            "model_info": {"id": "deployment-kimi"},
+        },
+        {
+            "model_name": "qwen-plus",
+            "litellm_params": {
+                "model": "openai/qwen-plus",
+                "max_budget": max_budget,
+                "budget_duration": "30d",
+                "budget_group": budget_group,
+            },
+            "model_info": {"id": "deployment-qwen"},
+        },
+    ]
+
+
+def test_budget_group_deployments_share_spend_key(disable_budget_sync, monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(asyncio, "create_task", lambda coro: None)
+    budget_limiter = RouterBudgetLimiting(
+        dual_cache=DualCache(),
+        provider_budget_config=None,
+        model_list=_grouped_model_list(),
+    )
+
+    kimi_key = budget_limiter._deployment_spend_key("deployment-kimi", "30d")
+    qwen_key = budget_limiter._deployment_spend_key("deployment-qwen", "30d")
+    assert kimi_key == qwen_key == "deployment_spend:group:acct-42:30d"
+    assert (
+        budget_limiter._deployment_budget_start_time_key("deployment-kimi")
+        == budget_limiter._deployment_budget_start_time_key("deployment-qwen")
+        == "deployment_budget_start_time:group:acct-42"
+    )
+
+    ungrouped_key = budget_limiter._deployment_spend_key("other-deployment", "30d")
+    assert ungrouped_key == "deployment_spend:other-deployment:30d"
+
+    budget_limiter.unregister_deployment_budget(model_id="deployment-kimi")
+    assert (
+        budget_limiter._deployment_spend_key("deployment-kimi", "30d")
+        == "deployment_spend:deployment-kimi:30d"
+    )
+
+
+@pytest.mark.asyncio
+async def test_budget_group_spend_pooled_across_deployments(
+    disable_budget_sync, monkeypatch
+):
+    """
+    Spend on one deployment in a budget_group must count against every other
+    deployment in the same group: 6 + 6 > 10 blocks both kimi and qwen.
+    """
+    import asyncio
+
+    monkeypatch.setattr(asyncio, "create_task", lambda coro: None)
+    budget_limiter = RouterBudgetLimiting(
+        dual_cache=DualCache(),
+        provider_budget_config=None,
+        model_list=_grouped_model_list(max_budget=10.0),
+    )
+
+    async def _log_spend(model_id, cost):
+        await budget_limiter.async_log_success_event(
+            kwargs={
+                "standard_logging_object": {
+                    "response_cost": cost,
+                    "model_id": model_id,
+                },
+                "litellm_params": {"custom_llm_provider": "openai"},
+            },
+            response_obj=None,
+            start_time=None,
+            end_time=None,
+        )
+
+    healthy_deployments = _grouped_model_list(max_budget=10.0)
+
+    await _log_spend("deployment-kimi", 6.0)
+    filtered = await budget_limiter.async_filter_deployments(
+        model="kimi-k2.5",
+        healthy_deployments=healthy_deployments,
+        messages=[],
+        request_kwargs={},
+        parent_otel_span=None,
+    )
+    assert len(filtered) == 2
+
+    await _log_spend("deployment-qwen", 6.0)
+    with pytest.raises(ValueError, match=r">= 10") as exc_info:
+        await budget_limiter.async_filter_deployments(
+            model="qwen-plus",
+            healthy_deployments=healthy_deployments,
+            messages=[],
+            request_kwargs={},
+            parent_otel_span=None,
+        )
+    message = str(exc_info.value)
+    assert "Exceeded budget for deployment" in message
+    assert ">= 30d" not in message
+    assert ">= 10" in message
+
+
+@pytest.mark.asyncio
+async def test_deployment_without_budget_group_keeps_isolated_spend(
+    disable_budget_sync, monkeypatch
+):
+    import asyncio
+
+    monkeypatch.setattr(asyncio, "create_task", lambda coro: None)
+    model_list = [
+        {
+            "model_name": "solo-model",
+            "litellm_params": {
+                "model": "openai/solo-model",
+                "max_budget": 10.0,
+                "budget_duration": "30d",
+            },
+            "model_info": {"id": "deployment-solo"},
+        }
+    ] + _grouped_model_list(max_budget=10.0)
+    budget_limiter = RouterBudgetLimiting(
+        dual_cache=DualCache(),
+        provider_budget_config=None,
+        model_list=model_list,
+    )
+
+    await budget_limiter.dual_cache.async_set_cache(
+        key="deployment_spend:group:acct-42:30d", value=100.0
+    )
+
+    filtered = await budget_limiter.async_filter_deployments(
+        model="solo-model",
+        healthy_deployments=model_list,
+        messages=[],
+        request_kwargs={},
+        parent_otel_span=None,
+    )
+    assert [d["model_info"]["id"] for d in filtered] == ["deployment-solo"]
+
+
+@pytest.mark.asyncio
+async def test_sync_resets_in_memory_spend_when_redis_key_deleted(
+    disable_budget_sync, monkeypatch
+):
+    """When the cron deletes Redis spend keys, the sync loop must reset
+    in-memory spend to 0 so deployments are no longer blocked."""
+    from unittest.mock import AsyncMock
+
+    from litellm.caching.in_memory_cache import InMemoryCache
+    from litellm.caching.redis_cache import RedisCache
+
+    mock_redis = AsyncMock(spec=RedisCache)
+    in_mem = InMemoryCache()
+    dual = DualCache(in_memory_cache=in_mem, redis_cache=mock_redis)
+
+    budget_limiter = RouterBudgetLimiting(
+        dual_cache=dual,
+        provider_budget_config={},
+    )
+
+    model_id = "dep-reset-test"
+    budget_limiter.deployment_budget_config = {
+        model_id: BudgetConfig(max_budget=5.0, budget_duration="30d"),
+    }
+
+    spend_key = f"deployment_spend:{model_id}:30d"
+    start_key = f"deployment_budget_start_time:{model_id}"
+
+    await in_mem.async_set_cache(key=spend_key, value=99.0)
+    await in_mem.async_set_cache(key=start_key, value=1.0)
+
+    mock_redis.async_batch_get_cache = AsyncMock(
+        return_value={spend_key: None, start_key: None}
+    )
+
+    await budget_limiter._sync_in_memory_spend_with_redis()
+
+    cached_spend = await in_mem.async_get_cache(key=spend_key)
+    assert cached_spend == 0.0, f"expected 0.0 after Redis key deletion, got {cached_spend}"
+    cached_start = await in_mem.async_get_cache(key=start_key)
+    assert cached_start is None, (
+        f"expected start_time removed from in-memory after Redis key deletion, got {cached_start}"
+    )

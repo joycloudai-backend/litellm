@@ -1,6 +1,6 @@
 """
 Volcengine LLM Provider
-Support for Volcengine (ByteDance) chat, embedding, and responses models.
+Support for Volcengine (ByteDance) chat, embedding, video, and responses models.
 """
 
 from typing import Final
@@ -13,6 +13,7 @@ from .common_utils import (
 )
 from .embedding import VolcEngineEmbeddingConfig
 from .responses.transformation import VolcEngineResponsesAPIConfig
+from .videos import VolcEngineVideoConfig
 
 # For backward compatibility, keep the old class name
 VolcEngineConfig: Final = VolcEngineChatConfig
@@ -21,6 +22,7 @@ __all__ = [
     "VolcEngineChatConfig",
     "VolcEngineConfig",  # backward compatibility
     "VolcEngineEmbeddingConfig",
+    "VolcEngineVideoConfig",
     "VolcEngineError",
     "VolcEngineResponsesAPIConfig",
     "get_volcengine_base_url",

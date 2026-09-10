@@ -73,6 +73,26 @@ class TestDashscopeCostCalculator:
         assert math.isclose(prompt_cost, expected_prompt_cost, rel_tol=1e-10)
         assert math.isclose(completion_cost, expected_completion_cost, rel_tol=1e-10)
 
+    def test_dashscope_tiered_pricing_at_tier_boundary_uses_lower_tier(self):
+        """
+        DashScope ranges are '0 < Token <= 256K', so exactly 256,000 input
+        tokens must still be billed at tier 1.
+        """
+        usage = Usage(prompt_tokens=256000, completion_tokens=1000)
+        prompt_cost, completion_cost = dashscope_cost_per_token(
+            model="qwen-flash", usage=usage
+        )
+
+        model_info = litellm.get_model_info("dashscope/qwen-flash")
+        tier_1 = model_info["tiered_pricing"][0]
+
+        assert math.isclose(
+            prompt_cost, 256000 * tier_1["input_cost_per_token"], rel_tol=1e-10
+        )
+        assert math.isclose(
+            completion_cost, 1000 * tier_1["output_cost_per_token"], rel_tol=1e-10
+        )
+
     def test_dashscope_tiered_pricing_bills_whole_request_at_selected_tier(self):
         """
         Regression: Model Studio tiered pricing is all-or-nothing, not graduated. An input

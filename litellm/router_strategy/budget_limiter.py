@@ -253,7 +253,7 @@ class RouterBudgetLimiting(CustomLogger):
                         0.0,
                     )
                     if config.max_budget and current_spend >= config.max_budget:
-                        debug_msg = f"Exceeded budget for deployment model_name: {_model_name}, litellm_params.model: {_litellm_model_name}, model_id: {model_id}: {current_spend} >= {config.budget_duration}"
+                        debug_msg = f"Exceeded budget for deployment model_name: {_model_name}, litellm_params.model: {_litellm_model_name}, model_id: {model_id}: {current_spend} >= {config.max_budget}"
                         verbose_router_logger.debug(debug_msg)
                         deployment_above_budget_info += f"{debug_msg}\n"
                         is_within_budget = False
@@ -584,6 +584,7 @@ class RouterBudgetLimiting(CustomLogger):
 
             # 2. Fetch all current provider spend from Redis to update in-memory cache
             cache_keys: Final = []
+            start_time_keys: set[str] = set()
 
             if self.provider_budget_config is not None:
                 for provider, config in self.provider_budget_config.items():
@@ -595,9 +596,13 @@ class RouterBudgetLimiting(CustomLogger):
                 for model_id, config in self.deployment_budget_config.items():
                     if config is None:
                         continue
-                    cache_keys.append(
-                        self._deployment_spend_key(model_id, config.budget_duration)
-                    )
+                    spend_key = self._deployment_spend_key(model_id, config.budget_duration)
+                    if spend_key not in cache_keys:
+                        cache_keys.append(spend_key)
+                    start_key = self._deployment_start_time_key(model_id)
+                    if start_key not in start_time_keys:
+                        start_time_keys.add(start_key)
+                        cache_keys.append(start_key)
 
             if self.tag_budget_config is not None:
                 for tag, config in self.tag_budget_config.items():
@@ -614,6 +619,19 @@ class RouterBudgetLimiting(CustomLogger):
                     if value is not None:
                         await self.dual_cache.in_memory_cache.async_set_cache(key=key, value=float(value))
                         verbose_router_logger.debug("Updated in-memory cache for %s: %s", key, value)
+                    elif key in start_time_keys:
+                        # start_time deleted from Redis (e.g. external budget
+                        # reset) — drop the stale in-memory copy so the next
+                        # spend recreates the budget window
+                        self.dual_cache.in_memory_cache.delete_cache(key)
+                        verbose_router_logger.debug(
+                            "Deleted in-memory cache for %s (deleted from Redis)", key
+                        )
+                    else:
+                        await self.dual_cache.in_memory_cache.async_set_cache(key=key, value=0.0)
+                        verbose_router_logger.debug(
+                            "Reset in-memory cache for %s (deleted from Redis)", key
+                        )
 
         except Exception as e:
             verbose_router_logger.error("Error syncing in-memory cache with Redis: %s", e)

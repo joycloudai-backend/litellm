@@ -432,13 +432,51 @@ async def test_stop_db_health_watchdog_task_noop_when_no_task(
 
 
 @pytest.mark.asyncio
-async def test_db_health_watchdog_loop_triggers_reconnect_on_timeout(
+async def test_db_health_watchdog_loop_triggers_reconnect_after_threshold_failures(
     prisma_client: PrismaClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The watchdog loop reconnects when ``wait_for`` raises TimeoutError
-    or a recognized DB connection error.
+    """The watchdog reconnects only once the number of *consecutive* failed
+    probes reaches ``_db_health_watchdog_failure_threshold`` (default 2), not
+    on the first failure. A single timeout must be tolerated as a transient
+    blip so the engine is not killed+respawned over one bad probe.
     """
     prisma_client._db_health_watchdog_interval_seconds = 0
+    prisma_client._db_health_watchdog_failure_threshold = 2
+    prisma_client._db_health_watchdog_consecutive_probe_failures = 0
+    prisma_client.attempt_db_reconnect = AsyncMock(return_value=True)
+
+    call_count = {"n": 0}
+
+    async def _timeout_twice_then_cancel(*args: Any, **kwargs: Any) -> None:
+        call_count["n"] += 1
+        if call_count["n"] >= 3:
+            raise asyncio.CancelledError()
+        raise asyncio.TimeoutError()
+
+    monkeypatch.setattr("asyncio.wait_for", _timeout_twice_then_cancel)
+    await prisma_client._db_health_watchdog_loop()
+    pinned = {
+        "reconnect_called": prisma_client.attempt_db_reconnect.await_count,
+        "reconnect_reason": prisma_client.attempt_db_reconnect.await_args.kwargs["reason"],
+        "wait_for_calls": call_count["n"],
+        "loop_exited_clean": True,
+    }
+    assert pinned == {
+        "reconnect_called": 1,
+        "reconnect_reason": "db_health_watchdog_connection_error",
+        "wait_for_calls": 3,
+        "loop_exited_clean": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_db_health_watchdog_loop_defers_reconnect_on_single_transient_failure(
+    prisma_client: PrismaClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A single failed probe below the threshold must NOT trigger a reconnect."""
+    prisma_client._db_health_watchdog_interval_seconds = 0
+    prisma_client._db_health_watchdog_failure_threshold = 2
+    prisma_client._db_health_watchdog_consecutive_probe_failures = 0
     prisma_client.attempt_db_reconnect = AsyncMock(return_value=True)
 
     call_count = {"n": 0}
@@ -451,18 +489,33 @@ async def test_db_health_watchdog_loop_triggers_reconnect_on_timeout(
 
     monkeypatch.setattr("asyncio.wait_for", _timeout_then_cancel)
     await prisma_client._db_health_watchdog_loop()
-    pinned = {
-        "reconnect_called": prisma_client.attempt_db_reconnect.await_count,
-        "reconnect_reason": prisma_client.attempt_db_reconnect.await_args.kwargs["reason"],
-        "wait_for_calls": call_count["n"],
-        "loop_exited_clean": True,
-    }
-    assert pinned == {
-        "reconnect_called": 1,
-        "reconnect_reason": "db_health_watchdog_connection_error",
-        "wait_for_calls": 2,
-        "loop_exited_clean": True,
-    }
+    assert prisma_client.attempt_db_reconnect.await_count == 0
+    assert prisma_client._db_health_watchdog_consecutive_probe_failures == 1
+
+
+@pytest.mark.asyncio
+async def test_db_health_watchdog_loop_resets_streak_on_successful_probe(
+    prisma_client: PrismaClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A successful probe between two failures resets the consecutive-failure streak."""
+    prisma_client._db_health_watchdog_interval_seconds = 0
+    prisma_client._db_health_watchdog_failure_threshold = 2
+    prisma_client._db_health_watchdog_consecutive_probe_failures = 0
+    prisma_client.attempt_db_reconnect = AsyncMock(return_value=True)
+
+    actions = iter(["timeout", "ok", "timeout", "cancel"])
+
+    async def _scripted(*args: Any, **kwargs: Any) -> None:
+        action = next(actions)
+        if action == "timeout":
+            raise asyncio.TimeoutError()
+        if action == "cancel":
+            raise asyncio.CancelledError()
+        return None
+
+    monkeypatch.setattr("asyncio.wait_for", _scripted)
+    await prisma_client._db_health_watchdog_loop()
+    assert prisma_client.attempt_db_reconnect.await_count == 0
 
 
 @pytest.mark.asyncio

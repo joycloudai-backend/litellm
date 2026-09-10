@@ -40,6 +40,8 @@ async def test_prismaclient_init_wires_default_config(
         "db_reconnect_cooldown_seconds": pc._db_reconnect_cooldown_seconds,
         "db_health_watchdog_interval_seconds": pc._db_health_watchdog_interval_seconds,
         "db_health_watchdog_enabled": pc._db_health_watchdog_enabled,
+        "db_health_watchdog_failure_threshold": pc._db_health_watchdog_failure_threshold,
+        "db_health_watchdog_consecutive_probe_failures": pc._db_health_watchdog_consecutive_probe_failures,
         "reconnect_escalation_threshold": pc._reconnect_escalation_threshold,
         "consecutive_reconnect_failures": pc._consecutive_reconnect_failures,
         "engine_pid": pc._engine_pid,
@@ -52,6 +54,8 @@ async def test_prismaclient_init_wires_default_config(
         "db_reconnect_cooldown_seconds": 15,
         "db_health_watchdog_interval_seconds": 30,
         "db_health_watchdog_enabled": True,
+        "db_health_watchdog_failure_threshold": 2,
+        "db_health_watchdog_consecutive_probe_failures": 0,
         "reconnect_escalation_threshold": 3,
         "consecutive_reconnect_failures": 0,
         "engine_pid": 0,
@@ -68,6 +72,7 @@ def test_prismaclient_init_honors_env_overrides(
     monkeypatch.setenv("PRISMA_RECONNECT_COOLDOWN_SECONDS", "42")
     monkeypatch.setenv("PRISMA_HEALTH_WATCHDOG_INTERVAL_SECONDS", "60")
     monkeypatch.setenv("PRISMA_HEALTH_WATCHDOG_ENABLED", "false")
+    monkeypatch.setenv("PRISMA_HEALTH_WATCHDOG_FAILURE_THRESHOLD", "4")
     monkeypatch.setenv("PRISMA_RECONNECT_ESCALATION_THRESHOLD", "7")
     monkeypatch.delenv("DATABASE_URL_READ_REPLICA", raising=False)
     monkeypatch.delenv("IAM_TOKEN_DB_AUTH", raising=False)
@@ -80,12 +85,14 @@ def test_prismaclient_init_honors_env_overrides(
         "db_reconnect_cooldown_seconds": pc._db_reconnect_cooldown_seconds,
         "db_health_watchdog_interval_seconds": pc._db_health_watchdog_interval_seconds,
         "db_health_watchdog_enabled": pc._db_health_watchdog_enabled,
+        "db_health_watchdog_failure_threshold": pc._db_health_watchdog_failure_threshold,
         "reconnect_escalation_threshold": pc._reconnect_escalation_threshold,
     }
     assert pinned == {
         "db_reconnect_cooldown_seconds": 42,
         "db_health_watchdog_interval_seconds": 60,
         "db_health_watchdog_enabled": False,
+        "db_health_watchdog_failure_threshold": 4,
         "reconnect_escalation_threshold": 7,
     }
 

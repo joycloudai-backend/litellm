@@ -278,6 +278,7 @@ async def test_db_health_watchdog_should_trigger_reconnect_on_db_error(
     client.db.query_raw = AsyncMock(side_effect=Exception("db connection dropped"))
     client.attempt_db_reconnect = AsyncMock(return_value=True)
     client._db_health_watchdog_interval_seconds = 1
+    client._db_health_watchdog_failure_threshold = 1
     client._db_watchdog_reconnect_timeout_seconds = 7.0
     client._db_health_watchdog_probe_timeout_seconds = 0.2
 
@@ -309,6 +310,7 @@ async def test_db_health_watchdog_should_trigger_reconnect_on_probe_timeout(
     client.db.query_raw = AsyncMock(side_effect=asyncio.TimeoutError())
     client.attempt_db_reconnect = AsyncMock(return_value=True)
     client._db_health_watchdog_interval_seconds = 1
+    client._db_health_watchdog_failure_threshold = 1
     client._db_watchdog_reconnect_timeout_seconds = 9.0
     client._db_health_watchdog_probe_timeout_seconds = 0.2
 

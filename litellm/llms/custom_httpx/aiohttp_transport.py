@@ -453,9 +453,13 @@ class LiteLLMAiohttpTransport(AiohttpTransport):
                 # Re-raise if it's a different RuntimeError
                 raise
 
+        # aiohttp CIMultiDict can fail httpx.Headers on duplicate / non-ASCII
+        # response headers; raw_headers is a list of (bytes, bytes).
+        response_headers = getattr(response, "raw_headers", None) or response.headers
+
         return httpx.Response(
             status_code=response.status,
-            headers=response.headers,
+            headers=response_headers,
             stream=AiohttpResponseStream(response),
             request=request,
         )
