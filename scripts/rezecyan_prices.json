@@ -277,6 +277,22 @@
       "cache_read_cny_per_1m": 2.0,
       "supports_prompt_caching": true
     },
+    "glm-5.3-flash": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 0.8,
+      "output_cny_per_1m": 2.8,
+      "cache_read_cny_per_1m": 0.23,
+      "supports_prompt_caching": true
+    },
+    "glm-5.3-flashx": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 2.0,
+      "output_cny_per_1m": 7.0,
+      "cache_read_cny_per_1m": 0.57,
+      "supports_prompt_caching": true
+    },
     "qwen3.6-max-preview": {
       "mode": "chat",
       "pricing_group": "default",
