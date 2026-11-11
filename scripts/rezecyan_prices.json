@@ -253,6 +253,24 @@
       "cache_read_cny_per_1m": 2.0,
       "supports_prompt_caching": true
     },
+    "kimi-k3.1-pro": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 13.0,
+      "output_cny_per_1m": 68.0,
+      "cache_read_cny_per_1m": 1.3,
+      "cache_creation_cny_per_1m": 13.0,
+      "supports_prompt_caching": true
+    },
+    "kimi-k3.1-pro-highspeed": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 26.0,
+      "output_cny_per_1m": 136.0,
+      "cache_read_cny_per_1m": 1.3,
+      "cache_creation_cny_per_1m": 26.0,
+      "supports_prompt_caching": true
+    },
     "qwen-vl-plus": {
       "mode": "chat",
       "pricing_group": "default",

@@ -64821,6 +64821,44 @@
         "source": "https://cn.rezecyan.com/pricing",
         "supports_prompt_caching": true
     },
+    "rezecyan/kimi-k3.1-pro": {
+        "cache_creation_input_token_cost": 1.857143e-06,
+        "cache_read_input_token_cost": 1.85714e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 1.857143e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 13.0,
+            "cache_read_cny_per_1m": 1.3,
+            "input_cny_per_1m": 13.0,
+            "output_cny_per_1m": 68.0
+        },
+        "output_cost_per_token": 9.714286e-06,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
+    "rezecyan/kimi-k3.1-pro-highspeed": {
+        "cache_creation_input_token_cost": 3.714286e-06,
+        "cache_read_input_token_cost": 1.85714e-07,
+        "cny_per_usd_rate": 7.0,
+        "input_cost_per_token": 3.714286e-06,
+        "litellm_provider": "rezecyan",
+        "mode": "chat",
+        "original_pricing_cny_per_1m": {
+            "cache_creation_cny_per_1m": 26.0,
+            "cache_read_cny_per_1m": 1.3,
+            "input_cny_per_1m": 26.0,
+            "output_cny_per_1m": 136.0
+        },
+        "output_cost_per_token": 1.9428571e-05,
+        "price_as_of": "2026-07-31",
+        "provider_pricing_currency": "USD",
+        "source": "https://cn.rezecyan.com/pricing",
+        "supports_prompt_caching": true
+    },
     "rezecyan/qwen-image-2.0": {
         "cny_per_usd_rate": 7.0,
         "input_cost_per_image": 0.028571428571,

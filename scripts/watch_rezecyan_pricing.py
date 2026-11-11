@@ -15,6 +15,8 @@ Watch Rezecyan GET /api/pricing (no cookie). Compare against a local snapshot.
 公式仅大小写变化（如 tier("base") → tier("BASE")）且各档 CNY 不变：不当漂移、不发飞书，并回写快照。
 分组：盯 watched_groups 的进出；模型新出现任意组名也报；非盯梢组被删不报。
 游客列表消失 = default 下架（公开列表不再包含）。
+模型名大小写不同视为两条（同名两条都保留，避免接口顺序导致误报上下架）。
+仅大小写互换且分组和牌价不变：不当漂移，回写快照里的名字。
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -114,15 +117,10 @@ def row_to_record(row: dict, *, usd_rate: float) -> dict[str, Any]:
 
 def payload_to_snapshot(payload: dict, *, usd_rate: float, watched: list[str]) -> dict:
     models: dict[str, dict] = {}
-    seen: set[str] = set()
     for row in payload.get("data") or []:
         name = str(row.get("model_name") or "").strip()
-        if not name:
+        if not name or name in models:
             continue
-        key = name.lower()
-        if key in seen:
-            continue
-        seen.add(key)
         models[name] = row_to_record(row, usd_rate=usd_rate)
     return {
         "_comment": (
@@ -167,6 +165,68 @@ def _price_diff(old: dict, new: dict) -> dict[str, Any]:
     return changed
 
 
+def _group_change(name: str, prev: dict, curr: dict, watched: set[str]) -> Optional[dict]:
+    old_g = set(prev.get("enable_groups") or [])
+    new_g = set(curr.get("enable_groups") or [])
+    added_g = new_g - old_g
+    removed_g = old_g - new_g
+    watched_added = sorted(added_g & watched)
+    watched_removed = sorted(removed_g & watched)
+    other_added = sorted(added_g - watched)
+    if not (watched_added or watched_removed or other_added):
+        return None
+    return {
+        "model": name,
+        "watched_added": watched_added,
+        "watched_removed": watched_removed,
+        "other_added": other_added,
+    }
+
+
+def _peel_case_renames(
+    old_models: dict,
+    new_models: dict,
+    added: list,
+    removed: list,
+    price_changes: list,
+    group_changes: list,
+    watched: set[str],
+) -> list[str]:
+    """一对一的大小写互换不当成上新/下架。牌价或分组变了则仍按改价/分组报。"""
+    old_only: dict[str, list[str]] = defaultdict(list)
+    new_only: dict[str, list[str]] = defaultdict(list)
+    for name in old_models:
+        if name not in new_models:
+            old_only[name.casefold()].append(name)
+    for name in new_models:
+        if name not in old_models:
+            new_only[name.casefold()].append(name)
+
+    drop_added: set[str] = set()
+    drop_removed: set[str] = set()
+    ignored: list[str] = []
+    for fold, old_names in old_only.items():
+        new_names = new_only.get(fold) or []
+        if len(old_names) != 1 or len(new_names) != 1:
+            continue
+        old_name, new_name = old_names[0], new_names[0]
+        prev, curr = old_models[old_name], new_models[new_name]
+        priced = _price_diff(prev, curr)
+        grouped = _group_change(old_name, prev, curr, watched)
+        if priced:
+            price_changes.append({"model": old_name, "renamed_to": new_name, "fields": priced})
+        if grouped:
+            group_changes.append(grouped)
+        if not priced and not grouped:
+            ignored.append(old_name)
+        drop_added.add(new_name)
+        drop_removed.add(old_name)
+
+    added[:] = [item for item in added if item["model"] not in drop_added]
+    removed[:] = [item for item in removed if item["model"] not in drop_removed]
+    return ignored
+
+
 def diff_snapshots(old: dict, new: dict) -> dict[str, Any]:
     watched = set(old.get("watched_groups") or new.get("watched_groups") or DEFAULT_WATCHED_GROUPS)
     old_models = old.get("models") or {}
@@ -206,22 +266,13 @@ def diff_snapshots(old: dict, new: dict) -> dict[str, Any]:
         elif _expr_case_only(prev.get("billing_expr") or "", curr.get("billing_expr") or ""):
             ignored_expr_case.append(name)
 
-        old_g = set(prev.get("enable_groups") or [])
-        new_g = set(curr.get("enable_groups") or [])
-        added_g = new_g - old_g
-        removed_g = old_g - new_g
-        watched_added = sorted(added_g & watched)
-        watched_removed = sorted(removed_g & watched)
-        other_added = sorted(added_g - watched)
-        if watched_added or watched_removed or other_added:
-            group_changes.append(
-                {
-                    "model": name,
-                    "watched_added": watched_added,
-                    "watched_removed": watched_removed,
-                    "other_added": other_added,
-                }
-            )
+        grouped = _group_change(name, prev, curr, watched)
+        if grouped:
+            group_changes.append(grouped)
+
+    ignored_name_case = _peel_case_renames(
+        old_models, new_models, added, removed, price_changes, group_changes, watched
+    )
 
     return {
         "added": added,
@@ -229,6 +280,7 @@ def diff_snapshots(old: dict, new: dict) -> dict[str, Any]:
         "price_changes": price_changes,
         "group_changes": group_changes,
         "ignored_expr_case": ignored_expr_case,
+        "ignored_name_case": ignored_name_case,
     }
 
 
@@ -260,7 +312,10 @@ def format_report(diff: dict) -> str:
     if diff["price_changes"]:
         lines.append("【改价】公式或各档牌价变化（非夜间此刻价）：")
         for item in diff["price_changes"]:
-            lines.append(f"  * {item['model']}")
+            label = item["model"]
+            if item.get("renamed_to"):
+                label = f"{label} → {item['renamed_to']}"
+            lines.append(f"  * {label}")
             for field, pair in item["fields"].items():
                 old, new = pair["old"], pair["new"]
                 if field == "billing_expr":
@@ -391,12 +446,55 @@ def self_test() -> None:
     assert "billing_expr" not in mixed_diff["price_changes"][0]["fields"]
     assert mixed_diff["price_changes"][0]["fields"]["input_cny_per_1m"]["new"] == 4.0
     assert mixed_diff["ignored_expr_case"] == []
+
+    both = payload_to_snapshot(
+        {
+            "data": [
+                {"model_name": "DeepSeek-X", "enable_groups": ["default"], "billing_expr": "peak"},
+                {"model_name": "deepseek-x", "enable_groups": ["default"], "billing_expr": "offpeak"},
+                {"model_name": "deepseek-x", "enable_groups": ["default"], "billing_expr": "dup"},
+            ]
+        },
+        usd_rate=7.0,
+        watched=["default"],
+    )
+    assert set(both["models"]) == {"DeepSeek-X", "deepseek-x"}
+    assert both["models"]["deepseek-x"]["billing_expr"] == "offpeak"
+
+    same_price = {
+        "enable_groups": ["default"],
+        "billing_mode": "tiered_expr",
+        "billing_expr": 'tier("base", p * 1)',
+        "input_cny_per_1m": 1.0,
+    }
+    rename_old = {"watched_groups": ["default"], "models": {"deepseek-x": dict(same_price)}}
+    rename_new = {"watched_groups": ["default"], "models": {"DeepSeek-X": dict(same_price)}}
+    rename_diff = diff_snapshots(rename_old, rename_new)
+    assert not has_drift(rename_diff)
+    assert rename_diff["ignored_name_case"] == ["deepseek-x"]
+    assert rename_diff["added"] == [] and rename_diff["removed"] == []
+
+    priced_new = {"watched_groups": ["default"], "models": {"DeepSeek-X": {**same_price, "input_cny_per_1m": 2.0}}}
+    priced_diff = diff_snapshots(rename_old, priced_new)
+    assert priced_diff["added"] == [] and priced_diff["removed"] == []
+    assert priced_diff["price_changes"][0]["model"] == "deepseek-x"
+    assert priced_diff["price_changes"][0]["renamed_to"] == "DeepSeek-X"
+    assert has_drift(priced_diff)
+
+    twin_new = {
+        "watched_groups": ["default"],
+        "models": {"deepseek-x": dict(same_price), "DeepSeek-X": {**same_price, "billing_expr": "peak"}},
+    }
+    twin_diff = diff_snapshots(rename_old, twin_new)
+    assert [x["model"] for x in twin_diff["added"]] == ["DeepSeek-X"]
+    assert twin_diff["removed"] == []
+    assert twin_diff["price_changes"] == []
     print("self-test OK")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--init", action="store_true", help="用当前接口覆盖快照（接受基线）")
+    parser.add_argument("--init", action="store_true", help="用当前接口覆盖快照（接受基线，保留快照里的 watched_groups）")
     parser.add_argument("--no-feishu", action="store_true", help="有漂移也不发飞书")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--snapshot", type=Path, default=SNAPSHOT_PATH)
@@ -414,7 +512,7 @@ def main() -> int:
         return 2
 
     watched = DEFAULT_WATCHED_GROUPS
-    if args.snapshot.exists() and not args.init:
+    if args.snapshot.exists():
         existing = json.loads(args.snapshot.read_text())
         watched = existing.get("watched_groups") or DEFAULT_WATCHED_GROUPS
 
@@ -430,11 +528,17 @@ def main() -> int:
     diff = diff_snapshots(baseline, live)
     if not has_drift(diff):
         ignored = diff.get("ignored_expr_case") or []
-        if ignored:
+        renamed = diff.get("ignored_name_case") or []
+        if ignored or renamed:
             write_snapshot(live, args.snapshot)
+            notes = []
+            if ignored:
+                notes.append("billing_expr: " + ", ".join(ignored))
+            if renamed:
+                notes.append("model name: " + ", ".join(renamed))
             print(
                 f"no drift ({len(live['models'])} models); "
-                f"absorbed case-only billing_expr: {', '.join(ignored)}"
+                f"absorbed case-only {'; '.join(notes)}"
             )
         else:
             print(f"no drift ({len(live['models'])} models)")
