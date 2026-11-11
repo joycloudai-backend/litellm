@@ -1380,7 +1380,7 @@ class VolcengineVideoBillingManager:
         }
         if custom_discount_factor is not None:
             cost_breakdown["discount_percent"] = custom_discount_factor
-            cost_breakdown["discount_amount"] = max(original_cost - final_spend, 0.0)
+            cost_breakdown["discount_amount"] = original_cost - final_spend
         return cost_breakdown
 
     async def _get_request_content_for_task_registration(
@@ -1521,8 +1521,8 @@ class VolcengineVideoBillingManager:
     ) -> float:
         """
         Apply the discount as a multiplier (final = spend * factor), matching the
-        chat billing semantics where erp stores the factor in (0, 1] and 0.8
-        means an 80% charge, not a 20% charge.
+        chat billing semantics where erp stores the factor in (0, 2] and 0.8
+        means an 80% charge, not a 20% charge. 1.5 means a 150% charge.
         """
         if discount_factor is None or spend <= 0:
             return spend
@@ -1584,7 +1584,7 @@ class VolcengineVideoBillingManager:
     @staticmethod
     def _normalize_discount_factor(value: Any) -> Optional[float]:
         factor = _safe_float(value, default=0.0)
-        if factor <= 0.0 or factor > 1.0:
+        if factor <= 0.0 or factor > 2.0:
             return None
         return factor
 

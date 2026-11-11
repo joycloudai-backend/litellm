@@ -574,6 +574,27 @@ def test_build_final_spend_log_metadata_writes_cost_breakdown_with_discount():
     assert cost_breakdown["discount_amount"] == pytest.approx(6.388888 - 5.111111)
 
 
+def test_build_final_spend_log_metadata_keeps_negative_discount_amount():
+    """加价时折扣额等于目录价减实扣，可以为负。"""
+    manager = _build_manager()
+
+    metadata = manager._build_final_spend_log_metadata(
+        existing_metadata=None,
+        usage={"total_tokens": 1_000_000},
+        pricing_currency="USD",
+        provider_spend_amount=10.0,
+        final_spend=15.0,
+        video_task_id="video_markup_breakdown",
+        custom_discount_factor=1.5,
+        final_spend_before_discount=10.0,
+    )
+
+    cost_breakdown = metadata["cost_breakdown"]
+    assert cost_breakdown["original_cost"] == pytest.approx(10.0)
+    assert cost_breakdown["total_cost"] == pytest.approx(15.0)
+    assert cost_breakdown["discount_amount"] == pytest.approx(-5.0)
+
+
 @pytest.mark.skip(reason="Requires full proxy_server dependencies - tested via integration tests")
 @pytest.mark.asyncio
 async def test_apply_async_billing_delta_prefers_existing_spend_log_identity():
@@ -698,10 +719,12 @@ class TestNormalizeDiscountFactor:
         [
             (0.8, 0.8),
             (1.0, 1.0),
+            (1.5, 1.5),
+            (2.0, 2.0),
             ("0.5", 0.5),
             (0.0, None),
             (-0.2, None),
-            (1.5, None),
+            (2.01, None),
             (None, None),
             ("garbage", None),
         ],
@@ -833,6 +856,27 @@ class TestMatchDiscountFactor:
         assert (
             manager._match_discount_factor(
                 custom_discount={"volcengine/doubao-seedance-2.0": 0.0},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="",
+                provider_model="",
+            )
+            is None
+        )
+
+    def test_factor_up_to_two_is_applied(self):
+        manager = _build_manager()
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"volcengine/doubao-seedance-2.0": 2.0},
+                model="volcengine/doubao-seedance-2.0",
+                model_group="",
+                provider_model="",
+            )
+            == 2.0
+        )
+        assert (
+            manager._match_discount_factor(
+                custom_discount={"volcengine/doubao-seedance-2.0": 2.01},
                 model="volcengine/doubao-seedance-2.0",
                 model_group="",
                 provider_model="",
