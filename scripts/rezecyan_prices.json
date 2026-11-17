@@ -415,6 +415,15 @@
       "cache_read_cny_per_1m": 1.5,
       "supports_prompt_caching": true,
       "cache_creation_cny_per_1m": 15.0
+    },
+    "qwen4-max": {
+      "mode": "chat",
+      "pricing_group": "default",
+      "input_cny_per_1m": 10.0,
+      "output_cny_per_1m": 30.0,
+      "cache_read_cny_per_1m": 0.5,
+      "supports_prompt_caching": true,
+      "cache_creation_cny_per_1m": 12.5
     }
   }
 }
