@@ -2381,6 +2381,10 @@ async def ui_view_spend_logs(
         description="Filter logs by model ID (litellm model deployment id)",
     ),
     model_group: str | None = fastapi.Query(default=None, description="Filter logs by model group"),
+    display_model: str | None = fastapi.Query(
+        default=None,
+        description="Match the name shown for a log: model_group, or model when model_group is blank",
+    ),
     key_alias: str | None = fastapi.Query(default=None, description="Filter logs by key alias"),
     end_user: str | None = fastapi.Query(default=None, description="Filter logs by end user"),
     error_code: str | None = fastapi.Query(default=None, description="Filter logs by error code (e.g., '404', '500')"),
@@ -2702,6 +2706,14 @@ async def ui_view_spend_logs(
                 sql_conditions.append(f"{sql_col} = ${p}")
                 sql_params.append(val)
                 p += 1
+
+        display_model_value = display_model.strip() if isinstance(display_model, str) else ""
+        if display_model_value:
+            sql_conditions.append(
+                f"(model_group = ${p} OR ((model_group IS NULL OR BTRIM(model_group) = '') AND model = ${p}))"
+            )
+            sql_params.append(display_model_value)
+            p += 1
 
         # Multi-team OR filter: (user = $X OR team_id = ANY($Y))
         if permitted_team_ids:

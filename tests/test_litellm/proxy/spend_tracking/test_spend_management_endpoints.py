@@ -2963,6 +2963,53 @@ async def test_ui_view_spend_logs_with_model_group(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_ui_view_spend_logs_display_model_matches_group_or_blank_model(client, monkeypatch):
+    """display_model matches model_group, or model only when model_group is blank."""
+    observed: list[tuple[str, tuple]] = []
+
+    def observe(sql_query, params):
+        observed.append((sql_query, params))
+
+    monkeypatch.setattr(
+        "litellm.proxy.proxy_server.prisma_client",
+        make_ui_spend_logs_mock_prisma([], lambda where: [], query_observer=observe),
+    )
+    start_date, end_date = _default_date_range()
+    app.dependency_overrides[ps.user_api_key_auth] = lambda: UserAPIKeyAuth(
+        user_role=LitellmUserRoles.PROXY_ADMIN
+    )
+    try:
+        response = client.get(
+            "/spend/logs/v2",
+            params={
+                "display_model": "kimi-k3",
+                "start_date": start_date,
+                "end_date": end_date,
+            },
+            headers={"Authorization": "Bearer sk-test"},
+        )
+        assert response.status_code == 200
+        matched = [(sql_query, params) for sql_query, params in observed if "BTRIM(model_group)" in sql_query]
+        assert matched
+        for sql_query, params in matched:
+            assert params.count("kimi-k3") == 1
+            assert "model_group = $" in sql_query
+            assert "AND model = $" in sql_query
+            assert " model = $" not in sql_query.split("OR", 1)[0]
+
+        observed.clear()
+        plain = client.get(
+            "/spend/logs/v2",
+            params={"start_date": start_date, "end_date": end_date},
+            headers={"Authorization": "Bearer sk-test"},
+        )
+        assert plain.status_code == 200
+        assert all("BTRIM(model_group)" not in sql_query for sql_query, _params in observed)
+    finally:
+        app.dependency_overrides.pop(ps.user_api_key_auth, None)
+
+
+@pytest.mark.asyncio
 async def test_ui_view_spend_logs_with_key_hash(client, monkeypatch):
     mock_spend_logs = [
         {
